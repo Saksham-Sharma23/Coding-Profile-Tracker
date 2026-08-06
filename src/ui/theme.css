@@ -1,0 +1,267 @@
+/*
+ * Global tokens and element resets, shared by the popup, dashboard and options page.
+ * The chart palette lives in viz/tokens.css; both are pulled in by ui/theme.ts so
+ * every entry point gets them from one import.
+ *
+ * Dark mode is declared under two scopes: the media query for the OS setting, and
+ * [data-theme] for the in-app toggle, which must win in both directions. The
+ * :not() guard lets a light stamp beat OS-dark; :where() keeps the media block's
+ * specificity below the toggle scope.
+ */
+:root {
+  --bg: #ffffff;
+  --surface: #f7f8fa;
+  --surface-2: #eef0f4;
+  --border: #e3e6ea;
+  --text: #14181f;
+  --muted: #6b7480;
+  --accent: #2f6feb;
+  --accent-soft: #e8effd;
+  --ok: #1a7f4b;
+  --error: #c0392b;
+  --shadow-1: 0 1px 2px rgb(20 24 31 / 6%), 0 1px 3px rgb(20 24 31 / 4%);
+
+  color-scheme: light dark;
+
+  /* Spacing scale. */
+  --s-1: 4px;
+  --s-2: 6px;
+  --s-3: 8px;
+  --s-4: 12px;
+  --s-5: 16px;
+  --s-6: 24px;
+  --s-7: 32px;
+
+  /* Type scale — codifies the ladder these surfaces already used by hand. */
+  --fs-hero: 48px;
+  --fs-xl: 24px;
+  --fs-lg: 20px;
+  --fs-md: 17px;
+  --fs-sm: 14px;
+  --fs-base: 13px;
+  --fs-xs: 12px;
+  --fs-2xs: 11px;
+  --fs-micro: 10px;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+
+  --dur-fast: 140ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  --font-ui: -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+
+    --bg: #16191d;
+    --surface: #1e2228;
+    --surface-2: #262b33;
+    --border: #2c313a;
+    --text: #e8eaed;
+    --muted: #9aa3ae;
+    --accent: #6a9bff;
+    --accent-soft: #1e2b47;
+    --ok: #4ade80;
+    --error: #f87171;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 24%);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #16191d;
+  --surface: #1e2228;
+  --surface-2: #262b33;
+  --border: #2c313a;
+  --text: #e8eaed;
+  --muted: #9aa3ae;
+  --accent: #6a9bff;
+  --accent-soft: #1e2b47;
+  --ok: #4ade80;
+  --error: #f87171;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 24%);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  background: var(--bg);
+  color: var(--text);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+input,
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+/* Every interactive element gets the same ring; :focus-visible keeps it off
+   mouse clicks. Previously only input/select had any focus affordance. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    /* Without this an `infinite` animation just spins at 0.01ms per turn. */
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ---- primitives ------------------------------------------------------- */
+
+/* One definition of the raised panel. .card, .tile and .viz all compose this
+   rather than each restating the surface/border/radius trio. */
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  padding: 7px 14px;
+  font-weight: 500;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: transparent;
+}
+
+.btn-quiet {
+  font-size: var(--fs-2xs);
+  padding: 3px 8px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ---- utilities -------------------------------------------------------- */
+
+.muted {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.spread {
+  justify-content: space-between;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

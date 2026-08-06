@@ -1,0 +1,168 @@
+/*
+ * 380px rather than the old 340: a row has to fit a name, a peek value and a chevron
+ * on one line, and the expanded body has to fit a 220px sparkline.
+ */
+.popup {
+  width: 380px;
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-header {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex: none;
+}
+
+.popup-title {
+  font-size: var(--fs-sm);
+}
+
+.popup-actions {
+  gap: var(--s-1);
+}
+
+.popup-scroll {
+  overflow-y: auto;
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.popup .rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.popup .pad {
+  padding: var(--s-6) var(--s-5);
+}
+
+.popup .onboarding {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.popup .onboarding p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.popup-footer {
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-2xs);
+  flex: none;
+}
+
+.popup-link {
+  color: var(--accent);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.popup-link:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+
+/* ---- summary strip ---------------------------------------------------- */
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-4);
+  padding: var(--s-4);
+}
+
+.summary-today {
+  gap: var(--s-3);
+}
+
+.summary-today-text {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Proportional figures: tabular-nums gives every digit a zero's width, which makes a
+   large standalone number look loose. */
+.summary-value {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: normal;
+}
+
+.summary-label {
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-side {
+  display: flex;
+  gap: var(--s-5);
+  text-align: right;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.summary-side-value {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.summary-streak {
+  gap: 3px;
+  color: var(--text);
+}
+
+.summary-nudge {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-2xs);
+}
+
+.goal-ring {
+  flex: none;
+}
+
+/* ---- skeleton --------------------------------------------------------- */
+
+.popup .skeleton {
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+.popup .rows[aria-hidden='true'] {
+  padding: var(--s-4);
+}
+
+.skeleton-strip {
+  height: 74px;
+}
+
+.skeleton-row {
+  height: 38px;
+}
+
+@keyframes skeleton-sweep {
+  to {
+    background-position: -200% 0;
+  }
+}

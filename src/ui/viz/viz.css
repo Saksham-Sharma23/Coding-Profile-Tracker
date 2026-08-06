@@ -1,0 +1,208 @@
+/* Surface/border/radius come from the shared .surface primitive in theme.css. */
+.viz {
+  padding: var(--s-5) 18px 18px;
+  margin: 0 0 var(--s-5);
+}
+
+.viz figcaption {
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.viz h2 {
+  font-size: 14px;
+  margin: 0 0 2px;
+}
+
+.viz .viz-sub {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.viz-toggle {
+  flex: none;
+  font-size: 11px;
+  padding: 4px 9px;
+}
+
+.viz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 11px;
+}
+
+.viz-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.viz-key {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* Wide content scrolls inside its own container; the page never scrolls sideways. */
+.viz-plot {
+  overflow-x: auto;
+}
+
+.viz-plot svg {
+  display: block;
+  width: 100%;
+  min-width: 420px;
+  height: auto;
+}
+
+/* Axis text and labels wear ink tokens, never a series color. */
+.viz-tick {
+  fill: var(--viz-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-endlabel {
+  fill: var(--viz-ink-2);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.viz-readout {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-scale {
+  margin-top: 8px;
+  font-size: 11px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.viz-scale-key {
+  gap: 3px;
+}
+
+.viz-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+}
+
+.viz-empty {
+  margin: 0;
+  padding: 20px 0;
+  font-size: 12px;
+}
+
+.viz-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.viz-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-table th,
+.viz-table td {
+  text-align: right;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.viz-table thead th,
+.viz-table tbody th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.viz-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+/* ---- sparkline -------------------------------------------------------- */
+
+.spark {
+  margin: 0;
+}
+
+.spark-cap {
+  font-size: var(--fs-2xs);
+  margin-bottom: var(--s-1);
+  gap: var(--s-4);
+}
+
+.spark-svg {
+  display: block;
+  max-width: 100%;
+}
+
+.spark-change {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Direction wears the delta tokens, not a series color — see marks & anatomy. */
+.spark-change.up {
+  color: var(--ok);
+}
+
+.spark-change.down {
+  color: var(--error);
+}
+
+.spark-empty {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+}
+
+/* ---- difficulty bars -------------------------------------------------- */
+
+.diffbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s-1) var(--s-3);
+  font-size: var(--fs-2xs);
+}
+
+.diff-label {
+  min-width: 42px;
+}
+
+.diff-track {
+  display: block;
+  height: 8px;
+}
+
+/* Rounded data-end, square at the baseline: the bar grows from the left edge. */
+.diff-fill {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: 0 4px 4px 0;
+  transition: width var(--dur-fast) var(--ease);
+}
+
+.diff-count {
+  min-width: 32px;
+  text-align: right;
+  color: var(--text);
+}

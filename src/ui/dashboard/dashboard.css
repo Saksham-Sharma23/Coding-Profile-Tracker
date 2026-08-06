@@ -1,0 +1,84 @@
+.dashboard {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-6) 64px;
+}
+
+.dashboard h1 {
+  font-size: var(--fs-lg);
+  margin: 0;
+}
+
+.dash-head {
+  margin-bottom: var(--s-6);
+}
+
+.dash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.dashboard .totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+/* Surface/border/radius come from the shared .surface primitive. */
+.dashboard .tile {
+  padding: var(--s-4) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard .tile-value {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/*
+ * Exactly one hero figure per view. Proportional figures here, not tabular — at this
+ * size tabular-nums gives every digit a zero's width and the number looks loose.
+ */
+.dashboard .hero-tile {
+  grid-column: span 2;
+  justify-content: center;
+}
+
+.dashboard .hero-value {
+  font-size: var(--fs-hero);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.dashboard .tile-label {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard .contest {
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-5);
+  font-size: var(--fs-xs);
+}
+
+.dashboard .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s-4);
+}
+
+.dashboard .pad {
+  padding: var(--s-7) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-4);
+}

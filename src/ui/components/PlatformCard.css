@@ -1,0 +1,29 @@
+/*
+ * The dashboard card. Surface/border/radius come from the shared .surface primitive,
+ * and the stat, delta and error rules live in PlatformRow.css so both forms stay in
+ * step. The difficulty colours moved to viz/tokens.css, where they are a validated
+ * ordinal ramp rather than three hard-coded hexes with no dark-mode variant.
+ */
+.card {
+  border-left: 3px solid var(--border); /* overridden inline with the brand accent */
+  padding: var(--s-4) var(--s-4) var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.card-title {
+  gap: var(--s-2);
+}
+
+.card-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+}
+
+.card-foot {
+  font-size: var(--fs-micro);
+  margin-top: auto;
+}

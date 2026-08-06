@@ -1,0 +1,111 @@
+/*
+ * Chart palette. These are the validated data-viz slots, deliberately NOT the
+ * platform brand colors: run through the palette validator, CodeChef's brown fails
+ * the chroma floor (0.037 — it reads gray) and LeetCode's orange falls outside the
+ * lightness band. Brand colors stay on the card accent stripes, which are decoration
+ * rather than data encoding.
+ *
+ * Slots 1-3 pass every check all-pairs in both modes against this project's card
+ * surfaces (light #f7f8fa, dark #1e2228). Light-mode slot 3 sits at 2.65:1, under
+ * the 3:1 mark floor — the relief rule applies, and both charts that use it ship
+ * direct labels plus a table view.
+ *
+ * Defined on :root rather than .viz because the popup draws sparklines and the
+ * goal ring outside any .viz container.
+ */
+:root {
+  /* Marker rings punch out to the surface the chart actually sits on, which is
+     the card, not the page. */
+  --viz-surface: #f7f8fa;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-ink: #0b0b0b;
+  --viz-ink-2: #52514e;
+  --viz-muted: #898781;
+
+  --viz-1: #2a78d6; /* blue   */
+  --viz-2: #eb6834; /* orange */
+  --viz-3: #1baf7a; /* aqua   */
+
+  /* Sequential blue, near-zero recedes toward the surface. */
+  --heat-0: #eceae4;
+  --heat-1: #cde2fb;
+  --heat-2: #9ec5f4;
+  --heat-3: #5598e7;
+  --heat-4: #2a78d6;
+  --heat-5: #184f95;
+
+  /*
+   * Easy/Medium/Hard is ORDINAL, not categorical — swapping the order changes the
+   * meaning — so it takes a one-hue ramp with monotone lightness and the reader
+   * sees the order in the color. The old green/amber/red was a three-hue rainbow
+   * over ordered data, and doubled as the reserved status palette.
+   * Validated --ordinal against #f7f8fa: monotone L, adjacent ΔL >= 0.06,
+   * light end 2.36:1 (steps 300/450/650 — step 250 missed the 2:1 floor here).
+   */
+  --diff-easy: #6da7ec;
+  --diff-medium: #2a78d6;
+  --diff-hard: #104281;
+
+  /* Meter track: a lighter step of the fill's own ramp, so the whole bar reads as
+     one scale rather than a colour sitting on a neutral gutter. */
+  --meter-track: #cde2fb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    --viz-surface: #1e2228;
+    --viz-grid: #2c2c2a;
+    --viz-axis: #383835;
+    --viz-ink: #ffffff;
+    --viz-ink-2: #c3c2b7;
+    --viz-muted: #898781;
+
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+
+    /* Reversed for the dark surface: near-zero is the dark end, so magnitude
+       still reads as "further from the surface". */
+    --heat-0: #23262b;
+    --heat-1: #184f95;
+    --heat-2: #256abf;
+    --heat-3: #3987e5;
+    --heat-4: #6da7ec;
+    --heat-5: #b7d3f6;
+
+    /* Same flip: the dark end is nearest the surface. Validated against
+       #1e2228 — light end 2.41:1 (step 550; step 600 missed the floor). */
+    --diff-easy: #1c5cab;
+    --diff-medium: #3987e5;
+    --diff-hard: #9ec5f4;
+
+    --meter-track: #184f95;
+  }
+}
+
+:root[data-theme='dark'] {
+  --viz-surface: #1e2228;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-ink: #ffffff;
+  --viz-ink-2: #c3c2b7;
+  --viz-muted: #898781;
+
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+
+  --heat-0: #23262b;
+  --heat-1: #184f95;
+  --heat-2: #256abf;
+  --heat-3: #3987e5;
+  --heat-4: #6da7ec;
+  --heat-5: #b7d3f6;
+
+  --diff-easy: #1c5cab;
+  --diff-medium: #3987e5;
+  --diff-hard: #9ec5f4;
+
+  --meter-track: #184f95;
+}

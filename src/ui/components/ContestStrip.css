@@ -1,0 +1,31 @@
+.contest {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  font-size: var(--fs-2xs);
+  color: var(--text);
+}
+
+.contest:hover {
+  text-decoration: none;
+  border-color: var(--accent);
+}
+
+.contest-icon {
+  color: var(--muted);
+  flex: none;
+}
+
+.contest-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-in {
+  flex: none;
+  font-weight: 600;
+}
