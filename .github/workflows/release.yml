@@ -1,0 +1,82 @@
+name: Release
+
+# Tagging v0.2.0 builds the extension and attaches an installable zip to a GitHub
+# Release. workflow_dispatch rehearses the same build without cutting a release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # The manifest takes its version from package.json, so a tag that disagrees would
+      # ship an extension labelled with the wrong version. Fail loudly instead.
+      - name: Check the tag matches package.json
+        if: github.ref_type == 'tag'
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg. Bump package.json, commit, then re-tag."
+            exit 1
+          fi
+
+      # A broken release is worse than a slow one.
+      - run: npm test
+      - run: npm run build
+
+      # Zip the *contents* of dist/, not the folder itself: the Chrome Web Store
+      # requires manifest.json at the root of the archive, and it keeps Load unpacked
+      # unambiguous for anyone installing by hand.
+      - name: Package
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="dev-${GITHUB_SHA:0:7}"
+          fi
+          name="coding-profile-tracker-${version}.zip"
+          (cd dist && zip -qr "../${name}" .)
+          echo "ZIP_NAME=${name}" >> "$GITHUB_ENV"
+          echo "Archive contents:"
+          unzip -l "${name}"
+
+      # Verify the archive is actually loadable before anyone downloads it.
+      - name: Verify the archive
+        run: |
+          unzip -l "$ZIP_NAME" | grep -qE ' manifest\.json$' \
+            || { echo "::error::manifest.json is not at the archive root."; exit 1; }
+          for icon in icon-16 icon-32 icon-48 icon-128; do
+            unzip -l "$ZIP_NAME" | grep -q "$icon.png" \
+              || { echo "::error::missing $icon.png"; exit 1; }
+          done
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$ZIP_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file .github/RELEASE_NOTES.md

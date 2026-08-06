@@ -23,18 +23,52 @@ no account, and there is no server to pay for. All state lives in `chrome.storag
 - **Control** — per-platform pause and reorder, light/dark/system theme, JSON
   export/import, and a full reset.
 
-## Install (development)
+## Install
+
+Not on the Chrome Web Store yet, so installation is a manual load. No Node or build
+tools needed for this path.
+
+1. Download the `.zip` from the [latest release][releases] and unzip it. **Keep the
+   unzipped folder somewhere permanent** — deleting it uninstalls the extension.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the unzipped folder.
+
+The options page opens automatically; add a username for any platform you want tracked.
+
+Two things to expect from a manually loaded extension: Chrome shows a "disable
+developer mode extensions" prompt on startup, which is normal and can be dismissed, and
+there are no automatic updates — to update, download the next release and click the
+reload arrow on the extension's card.
+
+Works in any Chromium browser with MV3 support: Chrome, Edge, Brave, Opera, Arc.
+
+[releases]: https://github.com/Saksham-Sharma23/Coding-Profile-Tracker/releases/latest
+
+## Build from source
 
 ```bash
 npm install
 npm run build
 ```
 
-Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load unpacked** →
-select the `dist/` folder. The options page opens on first install; enter a username
-for each platform you want tracked.
+Then load `dist/` as above. `npm run dev` runs Vite with hot reload against the same
+output.
 
-`npm run dev` runs Vite with hot reload against the same `dist/` output.
+`dist/` is deliberately not committed — it is ~40 generated files with content-hashed
+names, so it would churn every diff and conflict on every merge. Releases carry the
+built zip instead, produced by [`.github/workflows/release.yml`](.github/workflows/release.yml).
+
+### Cutting a release
+
+```bash
+npm version patch      # or minor / major — updates package.json
+git push && git push --tags
+```
+
+The tag triggers a build that runs the tests, packages `dist/`, and publishes a release
+with the zip attached. The workflow refuses to run if the tag disagrees with the version
+in `package.json`, since the manifest takes its version from there and a mismatch would
+ship an extension labelled wrong.
 
 ## How it gets the data
 
