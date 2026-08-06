@@ -3,3 +3,7 @@ dist/
 preview/
 *.local
 .DS_Store
+
+# Packaged builds. The release workflow produces these and attaches them to a
+# GitHub Release; they should never be committed.
+*.zip
