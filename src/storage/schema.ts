@@ -4,10 +4,11 @@ import {
   type PlatformStats,
   type SolvedProblem,
 } from '@/platforms/types';
+import { isCustomId, sanitizeCustom, type CustomPlatform } from './custom';
 
-export type { SolvedProblem };
+export type { CustomPlatform, SolvedProblem };
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Why a fetch failed, kept so the UI can offer the right remedy per case. */
 export type FailureKind = 'handle-not-found' | 'scrape-failed' | 'fetch-failed';
@@ -52,6 +53,8 @@ export interface Settings {
   dailyGoal: number;
   theme: ThemePref;
   reminder: ReminderSettings;
+  /** Platforms the user defined themselves. */
+  custom: CustomPlatform[];
 }
 
 export interface ContestItem {
@@ -95,6 +98,7 @@ export function defaultSettings(): Settings {
     dailyGoal: 0,
     theme: 'system',
     reminder: { enabled: false, hour: DEFAULT_REMINDER_HOUR },
+    custom: [],
   };
 }
 
@@ -111,9 +115,13 @@ export function defaultState(): TrackerState {
 
 /**
  * Brings any older stored blob up to SCHEMA_VERSION. Every step so far is additive —
- * v2 only introduced optional settings with defaults — so one merge covers v0, v1 and
- * v2 alike, and an upgrade never discards data the user has accumulated. If a future
- * version ever needs to *reshape* stored data, this becomes a version-branched chain.
+ * each version only introduced new fields with defaults — so one merge covers v0
+ * through v4 alike, and an upgrade never discards data the user has accumulated. If a
+ * future version ever needs to *reshape* stored data, this becomes a version-branched
+ * chain instead.
+ *
+ * This also doubles as the import validator, so it is a trust boundary: everything it
+ * returns may have come from a file someone else wrote.
  */
 export function migrate(raw: unknown): TrackerState {
   const base = defaultState();
@@ -122,17 +130,23 @@ export function migrate(raw: unknown): TrackerState {
   const state = raw as Partial<TrackerState>;
   const settings: Partial<Settings> = state.settings ?? {};
 
+  // The custom descriptors live inside the blob being migrated, so they have to be
+  // validated FIRST — everything below is gated on the set of ids they define.
+  const custom = sanitizeCustom(settings.custom);
+  const known = new Set<string>([...BUILTIN_PLATFORM_IDS, ...custom.map((def) => def.id)]);
+
   const merged: TrackerState = {
     version: SCHEMA_VERSION,
     settings: {
       handles: settings.handles ?? {},
       enabled: settings.enabled ?? {},
       refreshMinutes: clampRefresh(settings.refreshMinutes),
-      order: sanitizeIds(settings.order),
-      expanded: sanitizeIds(settings.expanded),
+      order: sanitizeIds(settings.order, known),
+      expanded: sanitizeIds(settings.expanded, known),
       dailyGoal: clampGoal(settings.dailyGoal),
       theme: isThemePref(settings.theme) ? settings.theme : 'system',
       reminder: sanitizeReminder(settings.reminder),
+      custom,
     },
     snapshots: state.snapshots ?? {},
     history: state.history ?? {},
@@ -141,8 +155,17 @@ export function migrate(raw: unknown): TrackerState {
     ...(state.contests && { contests: state.contests }),
   };
 
-  // Drop keys for platforms that no longer exist so stale data cannot resurface.
-  const known = new Set<string>(BUILTIN_PLATFORM_IDS);
+  /*
+   * Drop keys for platforms that no longer exist so stale data cannot resurface —
+   * but never for a `custom:` id.
+   *
+   * migrate() runs on every read, so if sanitizeCustom ever rejects a descriptor (a
+   * hand-edited export, a future tightening of the rules) a strict prune would turn a
+   * validation bug into permanent, silent loss of the user's history and hand-kept
+   * counts. Orphaned custom data is invisible to the UI and costs a few bytes;
+   * deleting a year of someone's progress is unrecoverable. Actual deletion is
+   * explicit, via removeCustomPlatform().
+   */
   for (const bag of [
     merged.settings.handles,
     merged.settings.enabled,
@@ -152,7 +175,7 @@ export function migrate(raw: unknown): TrackerState {
     merged.solved,
   ]) {
     for (const key of Object.keys(bag)) {
-      if (!known.has(key)) delete (bag as Record<string, unknown>)[key];
+      if (!known.has(key) && !isCustomId(key)) delete (bag as Record<string, unknown>)[key];
     }
   }
   if (merged.contests) {
@@ -179,10 +202,13 @@ export function isThemePref(value: unknown): value is ThemePref {
   return value === 'system' || value === 'light' || value === 'dark';
 }
 
-/** Keeps only real platform ids, de-duplicated, so a stale blob cannot smuggle junk in. */
-function sanitizeIds(value: unknown): PlatformId[] {
+/**
+ * Keeps only ids that name a real platform — builtin or user-defined — de-duplicated,
+ * so a stale blob cannot smuggle junk in. `known` is passed in rather than rebuilt,
+ * because the custom set is only computed part-way through migrate().
+ */
+function sanitizeIds(value: unknown, known: ReadonlySet<string>): PlatformId[] {
   if (!Array.isArray(value)) return [];
-  const known = new Set<string>(BUILTIN_PLATFORM_IDS);
   return [
     ...new Set(value.filter((id): id is PlatformId => typeof id === 'string' && known.has(id))),
   ];

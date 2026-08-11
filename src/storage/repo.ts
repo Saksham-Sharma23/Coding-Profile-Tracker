@@ -1,8 +1,9 @@
-import type { PlatformId, PlatformStats } from '@/platforms/types';
+import type { PlatformAdapter, PlatformId, PlatformStats } from '@/platforms/types';
 import {
   clampRefresh,
   defaultState,
   migrate,
+  type CustomPlatform,
   type FailureKind,
   type HistoryPoint,
   type Settings,
@@ -62,11 +63,52 @@ export async function saveSettings(partial: Partial<Settings>): Promise<TrackerS
   });
 }
 
-/** Platforms that have a handle set and are not explicitly disabled. */
-export function activePlatforms(settings: Settings): PlatformId[] {
-  return Object.entries(settings.handles)
-    .filter(([id, handle]) => handle?.trim() && settings.enabled[id as PlatformId] !== false)
-    .map(([id]) => id as PlatformId);
+/**
+ * Platforms a refresh should actually fetch.
+ *
+ * Driven by the adapter list rather than the handles bag: a hand-kept counter has no
+ * handle at all, so iterating handles could not even see it, and it must be excluded
+ * anyway because there is nothing to fetch.
+ */
+export function activePlatforms(settings: Settings, adapters: PlatformAdapter[]): PlatformId[] {
+  return adapters
+    .filter((adapter) => {
+      if (!adapter.capabilities.fetchable) return false;
+      if (settings.enabled[adapter.id] === false) return false;
+      return !adapter.capabilities.requiresHandle || settings.handles[adapter.id]?.trim();
+    })
+    .map((adapter) => adapter.id);
+}
+
+/**
+ * Adds or replaces a descriptor, operating on the freshly-read array rather than on
+ * whatever React last rendered — writes are whole-blob last-wins, so building the new
+ * list from stale component state would drop a concurrent change.
+ */
+export async function upsertCustomPlatform(def: CustomPlatform): Promise<void> {
+  await updateState((state) => {
+    const list = state.settings.custom;
+    const at = list.findIndex((each) => each.id === def.id);
+    if (at >= 0) list[at] = def;
+    else list.push(def);
+  });
+}
+
+/**
+ * The only path that deletes custom data. migrate() deliberately never prunes a
+ * `custom:` key, so this has to clear every bag explicitly.
+ */
+export async function removeCustomPlatform(id: PlatformId): Promise<void> {
+  await updateState((state) => {
+    const { settings } = state;
+    settings.custom = settings.custom.filter((def) => def.id !== id);
+    settings.order = settings.order.filter((each) => each !== id);
+    settings.expanded = settings.expanded.filter((each) => each !== id);
+
+    for (const bag of [settings.handles, settings.enabled, state.snapshots, state.history, state.solved]) {
+      delete (bag as Record<string, unknown>)[id];
+    }
+  });
 }
 
 export async function recordSuccess(stats: PlatformStats): Promise<void> {

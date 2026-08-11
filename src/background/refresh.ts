@@ -1,5 +1,5 @@
 import { fetchContests } from '@/platforms/contests';
-import { getAdapter } from '@/platforms/registry';
+import { allAdapters, getAdapter } from '@/platforms/registry';
 import type { PlatformId } from '@/platforms/types';
 import { activePlatforms, readState, recordFailure, recordSuccess, updateState } from '@/storage/repo';
 import type { FailureKind, TrackerState } from '@/storage/schema';
@@ -66,13 +66,17 @@ export async function refreshPlatform(platform: PlatformId, handle: string): Pro
  */
 export async function refreshAll(only?: PlatformId[]): Promise<RefreshOutcome[]> {
   const state = await readState();
-  const targets = (only ?? activePlatforms(state.settings)).filter(
-    (id) => state.settings.handles[id]?.trim(),
-  );
+  // Phase 0/1: no custom adapters are built yet.
+  const adapters = allAdapters([]);
+  const fetchable = new Set(activePlatforms(state.settings, adapters));
+
+  // Even an explicit `only` is intersected with what is actually fetchable, so a Retry
+  // click on a hand-kept counter cannot start a pointless request.
+  const targets = (only ?? [...fetchable]).filter((id) => fetchable.has(id));
 
   const tasks = targets.map(async (platform, index) => {
     await new Promise((resolve) => setTimeout(resolve, index * STAGGER_MS));
-    return refreshPlatform(platform, state.settings.handles[platform]!);
+    return refreshPlatform(platform, state.settings.handles[platform] ?? '');
   });
 
   const outcomes = await Promise.all(tasks);

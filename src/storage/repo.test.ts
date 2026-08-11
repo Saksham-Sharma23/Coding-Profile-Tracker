@@ -63,7 +63,7 @@ describe('migrate', () => {
     };
     const next = migrate(v2);
 
-    expect(next.version).toBe(3);
+    expect(next.version).toBe(SCHEMA_VERSION);
     expect(next.settings.dailyGoal).toBe(3);
     expect(next.settings.theme).toBe('dark');
     expect(next.history.codeforces).toHaveLength(1);
