@@ -26,7 +26,7 @@
     // legacy behaviour nothing here uses. Vite resolves the same alias itself in
     // vite.config.ts, so this mapping only informs the type checker.
     "paths": {
-      "@/*": ["./nope/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "vite.config.ts", "manifest.config.ts"]
