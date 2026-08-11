@@ -13,6 +13,18 @@ export default defineConfig({
     },
   },
   build: {
+    /*
+     * Vite emits <link rel="modulepreload" crossorigin> for every shared chunk. On a
+     * chrome-extension:// page Chrome fetches that preload in CORS mode while the real
+     * import of the same-origin resource does not, so the cached entry never matches
+     * and is thrown away — filling the console with "cross-world extension resource
+     * mismatch" and "preloaded but not used" warnings that drown out real errors.
+     *
+     * Nothing is lost by turning it off: these chunks come off local disk with no
+     * network round trip, which is the latency preloading exists to hide.
+     */
+    modulePreload: false,
+
     rollupOptions: {
       input: {
         // Neither is referenced by an action/options key, so CRXJS needs both
