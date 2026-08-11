@@ -55,12 +55,66 @@ export async function getSettings(): Promise<Settings> {
 
 export async function saveSettings(partial: Partial<Settings>): Promise<TrackerState> {
   return updateState((state) => {
+    // A changed handle means everything stored for that platform describes a different
+    // person, so it is discarded before the new handle lands. See clearPlatformData.
+    if (partial.handles) {
+      for (const id of changedHandles(state.settings.handles, partial.handles)) {
+        clearPlatformData(state, id);
+      }
+    }
+
     state.settings = {
       ...state.settings,
       ...partial,
       refreshMinutes: clampRefresh(partial.refreshMinutes ?? state.settings.refreshMinutes),
     };
   });
+}
+
+/**
+ * Compares two handles as the platforms themselves do — trimmed and case-insensitively.
+ *
+ * The asymmetry matters: reporting "same" when it changed merely leaves the existing
+ * behaviour, while reporting "changed" when it did not destroys real history. Codeforces
+ * is genuinely case-insensitive, so retyping `Tourist` for `tourist` must not count.
+ */
+function sameHandle(a: string | undefined, b: string | undefined): boolean {
+  return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+}
+
+/**
+ * Platforms whose handle differs between two settings bags, including ones added or
+ * cleared — a removed handle also orphans its data.
+ */
+export function changedHandles(
+  before: Partial<Record<PlatformId, string>>,
+  after: Partial<Record<PlatformId, string>>,
+): PlatformId[] {
+  const ids = new Set([...Object.keys(before), ...Object.keys(after)]);
+  return [...ids].filter((id) => !sameHandle(before[id], after[id]));
+}
+
+/**
+ * Drops everything accumulated for one platform, keeping its settings and descriptor.
+ *
+ * This exists because the data bags are keyed by platform alone, with no record of whose
+ * account they describe. mergeSolved() deliberately accumulates rather than replaces —
+ * LeetCode only ever returns the 20 most recent solves, so replacing would shrink the
+ * list on every refresh — which means that without this, pointing a platform at a
+ * different username silently blends two people's solve lists and continues one person's
+ * history series with another's totals.
+ */
+export function clearPlatformData(state: TrackerState, platform: PlatformId): void {
+  delete state.snapshots[platform];
+  delete state.history[platform];
+  delete state.solved[platform];
+}
+
+/** Whether a platform has anything stored that changing its handle would discard. */
+export function hasStoredData(state: TrackerState, platform: PlatformId): boolean {
+  return Boolean(
+    state.snapshots[platform] || state.history[platform]?.length || state.solved[platform]?.length,
+  );
 }
 
 /**
@@ -113,6 +167,17 @@ export async function removeCustomPlatform(id: PlatformId): Promise<void> {
 
 export async function recordSuccess(stats: PlatformStats): Promise<void> {
   await updateState((state) => {
+    /*
+     * Second line of defence behind saveSettings. That is the chokepoint for the normal
+     * path, but a handle can also arrive through an imported file, so the identity of
+     * the data is re-checked against what actually came back before anything is merged
+     * into it. Only fires when a previous fetch recorded a different account.
+     */
+    const owner = state.snapshots[stats.platform]?.stats?.handle;
+    if (owner && !sameHandle(owner, stats.handle)) {
+      clearPlatformData(state, stats.platform);
+    }
+
     // The problem list is cumulative, so it must not ride along inside the snapshot —
     // each fetch carries only a slice, and storing that would keep overwriting it.
     const { solvedProblems, ...rest } = stats;

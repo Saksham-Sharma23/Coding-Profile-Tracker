@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { sendMessage } from '@/background/messages';
 import { orderedAdapters } from '@/platforms/registry';
 import type { PlatformId } from '@/platforms/types';
-import { clearAll, readState, saveSettings, updateState } from '@/storage/repo';
+import {
+  changedHandles,
+  clearAll,
+  hasStoredData,
+  readState,
+  saveSettings,
+  updateState,
+} from '@/storage/repo';
 import { migrate, MIN_REFRESH_MINUTES, type ThemePref } from '@/storage/schema';
 import {
   ArrowDownIcon,
@@ -71,6 +78,28 @@ export function Options() {
         .map(([id, value]) => [id, value?.trim() ?? ''])
         .filter(([, value]) => value),
     ) as Partial<Record<PlatformId, string>>;
+
+    /*
+     * Repointing a platform at a different username discards its history and solved
+     * list, because that data describes the previous account. Worth a confirm: the most
+     * likely way to trigger it is a typo in a handle field, and the cost of an
+     * unannounced one is a year of someone's progress. Only asks when there is
+     * something real to lose.
+     */
+    const losing = changedHandles(state.settings.handles, handles).filter((id) =>
+      hasStoredData(state, id),
+    );
+    if (losing.length) {
+      const names = losing
+        .map((id) => adapters.find((adapter) => adapter.id === id)?.displayName ?? id)
+        .join(', ');
+      const ok = window.confirm(
+        `Changing the username for ${names} will clear the stored history and solved ` +
+          `problems for ${losing.length > 1 ? 'those platforms' : 'that platform'}, ` +
+          `because that data belongs to the previous account.\n\nContinue?`,
+      );
+      if (!ok) return;
+    }
 
     // Seed the popup's expanded rows on the first save, so a new user lands on an
     // open row instead of a wall of collapsed ones. Only when they have never chosen —
