@@ -4,10 +4,19 @@ import {
   ScrapeError,
   type PlatformAdapter,
   type PlatformStats,
+  type SolvedProblem,
 } from './types';
 
 const PLATFORM = 'leetcode' as const;
 const ENDPOINT = 'https://leetcode.com/graphql/';
+
+/**
+ * LeetCode caps recentAcSubmissionList at 20 however large a limit is requested —
+ * verified against 20, 50, 100 and 500, all of which returned exactly 20. So this is a
+ * rolling window, not history: the stored list backfills the last 20 at install and
+ * grows forward from there as refreshes pick up new solves.
+ */
+const RECENT_LIMIT = 20;
 
 /**
  * One round trip for everything the UI needs. `userContestRanking` is a sibling of
@@ -27,6 +36,12 @@ const QUERY = `query trackerProfile($u: String!) {
     globalRanking
     topPercentage
   }
+  recentAcSubmissionList(username: $u, limit: ${RECENT_LIMIT}) {
+    id
+    title
+    titleSlug
+    timestamp
+  }
 }`;
 
 interface LcResponse {
@@ -44,8 +59,45 @@ interface LcResponse {
       globalRanking?: number;
       topPercentage?: number;
     } | null;
+    recentAcSubmissionList?:
+      | ({ id?: string; title?: string; titleSlug?: string; timestamp?: string } | null)[]
+      | null;
   };
   errors?: { message: string }[];
+}
+
+/**
+ * Recent accepted submissions as solved problems.
+ *
+ * `timestamp` arrives as a *string* of epoch seconds. A submission whose slug or title
+ * is missing is skipped rather than stored under a placeholder — a problem with no way
+ * to link back to it is worse than one absent from the list.
+ */
+export function parseRecentSolved(body: LcResponse): SolvedProblem[] {
+  const recent = body.data?.recentAcSubmissionList;
+  if (!Array.isArray(recent)) return [];
+
+  const byKey = new Map<string, SolvedProblem>();
+  for (const entry of recent) {
+    if (!entry?.titleSlug || !entry.title) continue;
+
+    const seconds = Number(entry.timestamp);
+    if (!Number.isFinite(seconds)) continue;
+
+    // The same problem can appear twice in the window; keep the earliest solve.
+    const existing = byKey.get(entry.titleSlug);
+    const solvedAt = seconds * 1000;
+    if (existing && existing.solvedAt <= solvedAt) continue;
+
+    byKey.set(entry.titleSlug, {
+      key: entry.titleSlug,
+      name: entry.title,
+      url: `https://leetcode.com/problems/${entry.titleSlug}/`,
+      solvedAt,
+    });
+  }
+
+  return [...byKey.values()].sort((a, b) => b.solvedAt - a.solvedAt);
 }
 
 /**
@@ -107,6 +159,7 @@ export function buildStats(body: LcResponse, handle: string, fetchedAt: number):
   }
 
   const calendar = parseCalendar(user.userCalendar?.submissionCalendar);
+  const recentSolved = parseRecentSolved(body);
 
   return {
     platform: PLATFORM,
@@ -142,6 +195,7 @@ export function buildStats(body: LcResponse, handle: string, fetchedAt: number):
         icon: badge.icon?.startsWith('http') ? badge.icon : `https://leetcode.com${badge.icon}`,
       })),
     }),
+    ...(recentSolved.length && { solvedProblems: recentSolved }),
   };
 }
 

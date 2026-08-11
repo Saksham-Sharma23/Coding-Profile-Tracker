@@ -1,6 +1,13 @@
-import { PLATFORM_IDS, type PlatformId, type PlatformStats } from '@/platforms/types';
+import {
+  PLATFORM_IDS,
+  type PlatformId,
+  type PlatformStats,
+  type SolvedProblem,
+} from '@/platforms/types';
 
-export const SCHEMA_VERSION = 2;
+export type { SolvedProblem };
+
+export const SCHEMA_VERSION = 3;
 
 /** Why a fetch failed, kept so the UI can offer the right remedy per case. */
 export type FailureKind = 'handle-not-found' | 'scrape-failed' | 'fetch-failed';
@@ -65,6 +72,12 @@ export interface TrackerState {
   detected: Partial<Record<PlatformId, string>>;
   /** Upcoming contests. Not per-platform profile data, so deliberately not in snapshots. */
   contests?: { fetchedAt: number; items: ContestItem[] };
+  /**
+   * Problems solved, newest first. Accumulated across refreshes rather than replaced,
+   * because LeetCode only ever returns its 20 most recent — so this list is built up
+   * over time and must never be overwritten with one fetch's worth.
+   */
+  solved: Partial<Record<PlatformId, SolvedProblem[]>>;
 }
 
 /** Floor exists to stay polite to platforms that have no documented rate limit. */
@@ -92,6 +105,7 @@ export function defaultState(): TrackerState {
     snapshots: {},
     history: {},
     detected: {},
+    solved: {},
   };
 }
 
@@ -123,6 +137,7 @@ export function migrate(raw: unknown): TrackerState {
     snapshots: state.snapshots ?? {},
     history: state.history ?? {},
     detected: state.detected ?? {},
+    solved: state.solved ?? {},
     ...(state.contests && { contests: state.contests }),
   };
 
@@ -134,6 +149,7 @@ export function migrate(raw: unknown): TrackerState {
     merged.snapshots,
     merged.history,
     merged.detected,
+    merged.solved,
   ]) {
     for (const key of Object.keys(bag)) {
       if (!known.has(key)) delete (bag as Record<string, unknown>)[key];

@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { PlatformAdapter } from '@/platforms/types';
 import { previousPoint } from '@/storage/repo';
-import type { HistoryPoint, Snapshot } from '@/storage/schema';
+import type { HistoryPoint, Snapshot, SolvedProblem } from '@/storage/schema';
 import { AlertIcon, ChevronDownIcon, ExternalIcon } from '../icons';
 import { trendFor } from '@/shared/progress';
 import { timeAgo } from '../useTracker';
@@ -9,6 +9,7 @@ import { DifficultyBar } from '../viz/DifficultyBar';
 import { Sparkline } from '../viz/Sparkline';
 import { Delta } from './Delta';
 import { PlatformError } from './PlatformError';
+import { RecentProblems } from './RecentProblems';
 import { StatBlock } from './StatBlock';
 import './PlatformRow.css';
 
@@ -17,6 +18,7 @@ interface Props {
   handle: string;
   snapshot: Snapshot | undefined;
   history: HistoryPoint[] | undefined;
+  solvedProblems: SolvedProblem[] | undefined;
   today: string;
   busy: boolean;
   open: boolean;
@@ -37,6 +39,7 @@ export function PlatformRow({
   handle,
   snapshot,
   history,
+  solvedProblems,
   today,
   busy,
   open,
@@ -120,6 +123,8 @@ export function PlatformRow({
         )}
 
         {trend && <Sparkline points={trend.points} label={trend.label} />}
+
+        <RecentProblems platform={adapter.id} problems={solvedProblems} />
 
         {stats?.badges?.length ? (
           <ul className="prow-badges">

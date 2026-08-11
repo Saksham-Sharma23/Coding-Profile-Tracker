@@ -6,6 +6,7 @@ import {
   type FailureKind,
   type HistoryPoint,
   type Settings,
+  type SolvedProblem,
   type TrackerState,
 } from './schema';
 
@@ -13,6 +14,12 @@ const KEY = 'tracker';
 
 /** Roughly three years of daily points; well under quota even for all five platforms. */
 const MAX_HISTORY_POINTS = 1100;
+
+/**
+ * Bounds the solved list for very prolific users. At roughly 120 bytes a problem this
+ * is ~600KB per platform worst case, which `unlimitedStorage` covers comfortably.
+ */
+const MAX_SOLVED_PER_PLATFORM = 5000;
 
 /**
  * The service worker is torn down after ~30s idle, so nothing is cached in module
@@ -64,9 +71,45 @@ export function activePlatforms(settings: Settings): PlatformId[] {
 
 export async function recordSuccess(stats: PlatformStats): Promise<void> {
   await updateState((state) => {
-    state.snapshots[stats.platform] = { status: 'ok', stats, fetchedAt: stats.fetchedAt };
-    appendHistory(state, stats);
+    // The problem list is cumulative, so it must not ride along inside the snapshot —
+    // each fetch carries only a slice, and storing that would keep overwriting it.
+    const { solvedProblems, ...rest } = stats;
+    state.snapshots[stats.platform] = { status: 'ok', stats: rest, fetchedAt: stats.fetchedAt };
+    appendHistory(state, rest);
+    if (solvedProblems?.length) mergeSolved(state, stats.platform, solvedProblems);
   });
+}
+
+/**
+ * Folds newly seen problems into the stored list.
+ *
+ * Merge rather than replace: LeetCode only ever returns its 20 most recent accepted
+ * submissions, so a replace would shrink the list to 20 on every refresh and throw
+ * away everything accumulated since install. Codeforces does return full history, but
+ * the same merge handles it correctly, so there is one code path rather than two.
+ *
+ * An existing entry keeps its earlier `solvedAt` — that is the first time we saw the
+ * problem accepted, and re-solving it later should not restate when it was done.
+ */
+export function mergeSolved(
+  state: TrackerState,
+  platform: PlatformId,
+  incoming: SolvedProblem[],
+): void {
+  const byKey = new Map<string, SolvedProblem>();
+  for (const problem of state.solved[platform] ?? []) byKey.set(problem.key, problem);
+
+  for (const problem of incoming) {
+    const existing = byKey.get(problem.key);
+    byKey.set(
+      problem.key,
+      existing ? { ...problem, solvedAt: Math.min(existing.solvedAt, problem.solvedAt) } : problem,
+    );
+  }
+
+  state.solved[platform] = [...byKey.values()]
+    .sort((a, b) => b.solvedAt - a.solvedAt)
+    .slice(0, MAX_SOLVED_PER_PLATFORM);
 }
 
 /**

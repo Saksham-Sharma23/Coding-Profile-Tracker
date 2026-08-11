@@ -45,13 +45,40 @@ describe('migrate', () => {
     expect(next.history.leetcode).toHaveLength(2);
     expect(next.detected.codeforces).toBe('cf');
 
-    // And the fields v2 introduced arrive with usable defaults.
-    expect(next.version).toBe(2);
+    // And the fields later versions introduced arrive with usable defaults.
+    expect(next.version).toBe(SCHEMA_VERSION);
     expect(next.settings.order).toEqual([]);
     expect(next.settings.expanded).toEqual([]);
     expect(next.settings.dailyGoal).toBe(0);
     expect(next.settings.theme).toBe('system');
     expect(next.settings.reminder).toEqual({ enabled: false, hour: DEFAULT_REMINDER_HOUR });
+    expect(next.solved).toEqual({});
+  });
+
+  it('carries a v2 blob forward and adds the v3 solved-problem bag', () => {
+    const v2 = {
+      version: 2,
+      settings: { handles: { codeforces: 'cf' }, dailyGoal: 3, theme: 'dark' },
+      history: { codeforces: [{ d: '2026-08-01', rating: 1400 }] },
+    };
+    const next = migrate(v2);
+
+    expect(next.version).toBe(3);
+    expect(next.settings.dailyGoal).toBe(3);
+    expect(next.settings.theme).toBe('dark');
+    expect(next.history.codeforces).toHaveLength(1);
+    expect(next.solved).toEqual({});
+  });
+
+  it('keeps a stored solved list and drops retired platforms from it', () => {
+    const next = migrate({
+      solved: {
+        codeforces: [{ key: '1-A', name: 'Theatre Square', url: 'x', solvedAt: 5 }],
+        topcoder: [{ key: 'z', name: 'Gone', url: 'y', solvedAt: 1 }],
+      },
+    });
+    expect(next.solved.codeforces).toHaveLength(1);
+    expect(next.solved).not.toHaveProperty('topcoder');
   });
 
   it('drops keys for platforms that no longer exist', () => {

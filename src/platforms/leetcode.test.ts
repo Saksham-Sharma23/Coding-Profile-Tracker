@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildStats, parseCalendar } from './leetcode';
+import { buildStats, parseCalendar, parseRecentSolved } from './leetcode';
 import { HandleNotFoundError } from './types';
 import fixture from './__fixtures__/leetcode-profile.json';
 
@@ -44,6 +44,82 @@ describe('leetcode', () => {
       errors: [{ message: 'That user does not exist.' }],
     };
     expect(() => buildStats(body, 'ghost', AT)).toThrow(HandleNotFoundError);
+  });
+
+  describe('parseRecentSolved', () => {
+    // The exact shape returned live: id and timestamp are strings, not numbers.
+    const entry = (slug: string, title: string, seconds: number) => ({
+      id: String(seconds),
+      title,
+      titleSlug: slug,
+      timestamp: String(seconds),
+    });
+
+    it('maps recent accepted submissions to linkable problems, newest first', () => {
+      const solved = parseRecentSolved({
+        data: {
+          matchedUser: null,
+          userContestRanking: null,
+          recentAcSubmissionList: [
+            entry('two-sum', 'Two Sum', 1_786_300_000),
+            entry('add-two-numbers', 'Add Two Numbers', 1_786_200_000),
+          ],
+        },
+      });
+
+      expect(solved.map((p) => p.key)).toEqual(['two-sum', 'add-two-numbers']);
+      expect(solved[0]).toMatchObject({
+        name: 'Two Sum',
+        url: 'https://leetcode.com/problems/two-sum/',
+        solvedAt: 1_786_300_000_000,
+      });
+    });
+
+    it('keeps the earliest solve when a problem appears twice in the window', () => {
+      const solved = parseRecentSolved({
+        data: {
+          matchedUser: null,
+          userContestRanking: null,
+          recentAcSubmissionList: [
+            entry('two-sum', 'Two Sum', 1_786_300_000),
+            entry('two-sum', 'Two Sum', 1_786_100_000),
+          ],
+        },
+      });
+      expect(solved).toHaveLength(1);
+      expect(solved[0]!.solvedAt).toBe(1_786_100_000_000);
+    });
+
+    it('skips entries with no slug, since there would be no way to link back', () => {
+      const solved = parseRecentSolved({
+        data: {
+          matchedUser: null,
+          userContestRanking: null,
+          recentAcSubmissionList: [
+            { title: 'Orphan', timestamp: '1786300000' },
+            null,
+            { ...entry('ok', 'Fine', 1_786_300_000), timestamp: 'not-a-number' },
+          ],
+        },
+      });
+      expect(solved).toEqual([]);
+    });
+
+    it('returns nothing when the field is absent or null', () => {
+      expect(parseRecentSolved({})).toEqual([]);
+      expect(
+        parseRecentSolved({
+          data: { matchedUser: null, userContestRanking: null, recentAcSubmissionList: null },
+        }),
+      ).toEqual([]);
+    });
+
+    it('handles the captured profile, whose account has no recent activity', () => {
+      // A real and expected case: an inactive account returns an empty list, which
+      // must not be mistaken for "this platform has no problem feed".
+      expect(parseRecentSolved(fixture)).toEqual([]);
+      expect(buildStats(fixture, 'neal_wu', AT).solvedProblems).toBeUndefined();
+    });
   });
 
   describe('parseCalendar', () => {

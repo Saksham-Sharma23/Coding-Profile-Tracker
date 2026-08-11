@@ -8,6 +8,25 @@ export const PLATFORM_IDS = [
 
 export type PlatformId = (typeof PLATFORM_IDS)[number];
 
+/**
+ * One problem the user has solved.
+ *
+ * `key` is the platform's own stable identity for the problem (a LeetCode slug, a
+ * Codeforces `contestId-index`), used to merge repeat solves rather than accumulate
+ * duplicates. `solvedAt` is the earliest accepted submission we have seen — exact for
+ * Codeforces, which returns full history, and first-observed for anything discovered
+ * through a periodic poll.
+ */
+export interface SolvedProblem {
+  key: string;
+  name: string;
+  url: string;
+  solvedAt: number;
+  /** A Codeforces problem rating or a LeetCode difficulty. Display only. */
+  difficulty?: string | number;
+  tags?: string[];
+}
+
 /** A single number the popup card shows front and center. */
 export interface HeadlineStat {
   label: string;
@@ -36,6 +55,14 @@ export interface PlatformStats {
     calendar?: Record<string, number>;
   };
   badges?: { name: string; tier?: string; icon?: string }[];
+  /**
+   * Problems this fetch saw solved — named apart from `solved`, which holds counts.
+   * Adapters return whatever the platform gave them (complete history for Codeforces,
+   * the last 20 for LeetCode) and the repo merges it into the accumulated list rather
+   * than replacing it. Deliberately not kept on the snapshot, which is a point-in-time
+   * record, whereas this list is cumulative.
+   */
+  solvedProblems?: SolvedProblem[];
 }
 
 export interface PlatformAdapter {

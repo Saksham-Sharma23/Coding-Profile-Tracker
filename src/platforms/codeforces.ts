@@ -4,6 +4,7 @@ import {
   ScrapeError,
   type PlatformAdapter,
   type PlatformStats,
+  type SolvedProblem,
 } from './types';
 
 const PLATFORM = 'codeforces' as const;
@@ -45,7 +46,14 @@ interface CfUser {
 
 interface CfSubmission {
   verdict?: string;
-  problem?: { contestId?: number; index?: string; name?: string };
+  creationTimeSeconds?: number;
+  problem?: {
+    contestId?: number;
+    index?: string;
+    name?: string;
+    rating?: number;
+    tags?: string[];
+  };
 }
 
 /**
@@ -64,19 +72,65 @@ export function unwrap<T>(body: Envelope<T> | LooseEnvelope<T>, handle: string):
 /**
  * A user may solve the same problem in multiple submissions, and practice submissions
  * carry the originating contest id, so identity is (contestId, index).
+ *
+ * Gym/acmsguru problems can lack contestId; falling back to the name keeps them counted.
  */
+function problemKey(problem: NonNullable<CfSubmission['problem']>): string {
+  const { contestId, index, name } = problem;
+  return contestId !== undefined && index ? `${contestId}-${index}` : `name:${name ?? ''}`;
+}
+
 export function countSolved(submissions: CfSubmission[]): number {
   const solved = new Set<string>();
   for (const sub of submissions) {
     if (sub.verdict !== 'OK' || !sub.problem) continue;
-    const { contestId, index, name } = sub.problem;
-    // Gym/acmsguru problems can lack contestId; fall back to the name so they still count.
-    solved.add(contestId !== undefined && index ? `${contestId}-${index}` : `name:${name ?? ''}`);
+    solved.add(problemKey(sub.problem));
   }
   return solved.size;
 }
 
-export function buildStats(user: CfUser, solvedCount: number, fetchedAt: number): PlatformStats {
+/**
+ * The solved problems behind that count, newest first.
+ *
+ * This is free: `user.status` is already fetched for the count and carries the problem
+ * name, rating and tags, all of which used to be parsed away. The earliest accepted
+ * submission wins, so the date reflects when the problem was first solved rather than
+ * the last time it was revisited.
+ */
+export function extractSolved(submissions: CfSubmission[]): SolvedProblem[] {
+  const byKey = new Map<string, SolvedProblem>();
+
+  for (const sub of submissions) {
+    if (sub.verdict !== 'OK' || !sub.problem?.name) continue;
+
+    const key = problemKey(sub.problem);
+    const solvedAt = (sub.creationTimeSeconds ?? 0) * 1000;
+    const existing = byKey.get(key);
+    if (existing && existing.solvedAt <= solvedAt) continue;
+
+    const { contestId, index, name, rating, tags } = sub.problem;
+    byKey.set(key, {
+      key,
+      name,
+      url:
+        contestId !== undefined && index
+          ? `https://codeforces.com/problemset/problem/${contestId}/${index}`
+          : 'https://codeforces.com/problemset',
+      solvedAt,
+      ...(rating !== undefined && { difficulty: rating }),
+      ...(tags?.length && { tags }),
+    });
+  }
+
+  return [...byKey.values()].sort((a, b) => b.solvedAt - a.solvedAt);
+}
+
+export function buildStats(
+  user: CfUser,
+  solvedCount: number,
+  fetchedAt: number,
+  solvedProblems: SolvedProblem[] = [],
+): PlatformStats {
   const headline: PlatformStats['headline'] = [];
 
   if (user.rating !== undefined) {
@@ -100,6 +154,7 @@ export function buildStats(user: CfUser, solvedCount: number, fetchedAt: number)
         ...(user.rank && { rank: titleCase(user.rank) }),
       },
     }),
+    ...(solvedProblems.length && { solvedProblems }),
   };
 }
 
@@ -147,6 +202,6 @@ export const codeforces: PlatformAdapter = {
       if (page.length < PAGE_SIZE) break;
     }
 
-    return buildStats(user, countSolved(submissions), fetchedAt);
+    return buildStats(user, countSolved(submissions), fetchedAt, extractSolved(submissions));
   },
 };

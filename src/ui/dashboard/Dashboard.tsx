@@ -12,6 +12,7 @@ import { useThemeMirror, useTracker, timeAgo } from '../useTracker';
 import { Heatmap } from '../viz/Heatmap';
 import { RatingChart } from '../viz/RatingChart';
 import type { Series } from '../viz/scales';
+import { SolvedLog } from './SolvedLog';
 import './dashboard.css';
 
 /**
@@ -116,6 +117,8 @@ export function Dashboard() {
           <RatingChart series={series} />
 
           {calendar && <Heatmap calendar={calendar} today={today} sourceName="LeetCode" />}
+
+          <SolvedLog state={state} tracked={tracked} today={today} />
 
           <section className="grid">
             {tracked.map((adapter) => (

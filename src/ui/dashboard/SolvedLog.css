@@ -1,0 +1,64 @@
+.solved-head {
+  align-items: flex-start;
+  gap: var(--s-4);
+  margin-bottom: var(--s-3);
+}
+
+.solved-log h2 {
+  margin: 0 0 2px;
+}
+
+.solved-search {
+  flex: none;
+  width: 220px;
+  max-width: 45%;
+}
+
+.solved-note,
+.solved-empty {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-2xs);
+  line-height: 1.45;
+}
+
+.solved-wrap {
+  max-height: 420px;
+}
+
+.solved-table th[scope='row'] a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+}
+
+.solved-table th[scope='row'] a:hover {
+  color: var(--accent);
+}
+
+.solved-table th[scope='row'] {
+  /* Long problem names should wrap rather than stretch the table sideways. */
+  white-space: normal;
+  max-width: 320px;
+}
+
+.solved-tags {
+  display: block;
+  font-size: var(--fs-micro);
+  margin-top: 1px;
+}
+
+.solved-platform {
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+.solved-platform .dot {
+  display: inline-block;
+  margin-right: var(--s-2);
+  vertical-align: baseline;
+}
+
+.solved-more {
+  margin-top: var(--s-3);
+}

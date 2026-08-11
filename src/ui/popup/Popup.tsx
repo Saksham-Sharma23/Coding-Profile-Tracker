@@ -86,6 +86,7 @@ export function Popup() {
                 handle={state.settings.handles[adapter.id]!}
                 snapshot={state.snapshots[adapter.id]}
                 history={state.history[adapter.id]}
+                solvedProblems={state.solved[adapter.id]}
                 today={today}
                 busy={refreshing}
                 open={isExpanded(state.settings.expanded, adapter.id)}

@@ -14,6 +14,8 @@ no account, and there is no server to pay for. All state lives in `chrome.storag
   over one collapsible row per platform. Rows remember whether they were open.
 - **Trends** — every row draws a sparkline from history the extension has been
   collecting since install; nothing extra is fetched for it.
+- **Problem log** — which problems you solved, not just how many, searchable by name,
+  platform or tag on the dashboard. Codeforces and LeetCode only (see below).
 - **Toolbar badge** — today's solve count, so progress is visible without opening
   anything.
 - **Contest countdown** — the next Codeforces or LeetCode contest, on the platforms you
@@ -82,6 +84,25 @@ adapter behind a shared interface, so a change to one cannot affect the others.
 | HackerRank | Undocumented JSON | `/rest/hackers/{h}/badges` + `/rest/contests/master/hackers/{h}/profile`. 404s for unknown users. No stability guarantee. |
 | GeeksforGeeks | `authapi.geeksforgeeks.org` JSON | Profile pages are Next.js RSC streams with no embedded JSON, but the auth API returns the same numbers cleanly. Unknown handles return 400 with an **empty body**. |
 | CodeChef | HTML scrape | The only scraper. Unknown users get the **generic landing page with HTTP 200**, so a missing `.rating-number` is how "no such user" is detected. |
+
+### Which problems, not just how many
+
+Two platforms will say what you actually solved, and both come free of extra requests:
+
+| Platform | Source | Coverage |
+|---|---|---|
+| Codeforces | `user.status`, **already fetched** for the solve count | Complete history. The response carries problem name, rating and tags, all of which the adapter used to parse away. |
+| LeetCode | `recentAcSubmissionList`, one more field on the existing GraphQL query | **The 20 most recent, and only 20** — asking for 50, 100 or 500 all return 20. |
+
+That cap is why the stored list is **merged, never replaced**: a replace would shrink
+LeetCode to 20 entries on every refresh and discard everything accumulated since
+install. So LeetCode backfills 20 at install and grows forward from there, while
+Codeforces is complete from the first refresh. The UI names the platforms that
+contribute nothing rather than letting a short list look like a bug.
+
+CodeChef, GeeksforGeeks and HackerRank publish no per-problem feed. CodeChef lists
+problem codes on its profile page, but that is the fragile scraper tier and was left
+alone deliberately.
 
 Contests come from two extra endpoints, kept outside the `PlatformAdapter` contract
 because they need no handle and are the same for every user: Codeforces'
@@ -183,7 +204,7 @@ the sparkline caption.
 ## Development
 
 ```bash
-npm test           # 129 tests
+npm test           # 154 tests
 npm run typecheck
 npm run build
 node scripts/make-icons.mjs   # only when the icon design changes
@@ -195,8 +216,14 @@ shape, re-capture the fixture and the diff shows exactly what moved. The Codefor
 contest fixture is trimmed to eight entries spanning both phases — the live response
 carries ~2,100 contests and shape is what the test needs.
 
-Storage is at **schema v2**. Every migration step so far is additive, so one merge
-covers v0, v1 and v2; `migrate()` becomes a version-branched chain only when some
+Fixtures use public reference accounts (`neal_wu`, `tourist`), never the maintainer's
+own profile — a fixture is committed to a public repo, and a personal solve history has
+no business being in one. Where a real capture cannot exercise a path (the reference
+LeetCode account is inactive, so its recent-submissions list is empty), the test builds
+a synthetic payload in the shape verified live.
+
+Storage is at **schema v3**. Every migration step so far is additive, so one merge
+covers v0 through v3; `migrate()` becomes a version-branched chain only when some
 future version has to reshape data rather than add to it.
 
 ## Politeness and terms
