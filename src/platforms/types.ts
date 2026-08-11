@@ -1,4 +1,4 @@
-export const PLATFORM_IDS = [
+export const BUILTIN_PLATFORM_IDS = [
   'leetcode',
   'codeforces',
   'hackerrank',
@@ -6,7 +6,59 @@ export const PLATFORM_IDS = [
   'geeksforgeeks',
 ] as const;
 
-export type PlatformId = (typeof PLATFORM_IDS)[number];
+/** The five platforms that ship with a hand-written adapter. */
+export type BuiltinPlatformId = (typeof BUILTIN_PLATFORM_IDS)[number];
+
+/** Prefix reserved for user-defined platforms, so an id can never collide with a builtin. */
+export const CUSTOM_PREFIX = 'custom:';
+
+/**
+ * Any platform id — a builtin, or a user-defined `custom:<slug>-<hex>`.
+ *
+ * Deliberately plain `string` rather than `BuiltinPlatformId | (string & {})`: that
+ * union is structurally just `string`, so it buys editor autocomplete and no safety at
+ * all. Nothing in the codebase switches exhaustively on a platform id, so there is
+ * nothing for a closed union to protect. Use `BuiltinPlatformId` where the closed set
+ * is genuinely required — the content scripts and the contest parsers.
+ */
+export type PlatformId = string;
+
+/**
+ * What a platform can actually do, replacing the hardcoded allowlists that used to live
+ * in the dashboard and shared/solved.ts. Declared per adapter so a user-defined platform
+ * can describe itself without any UI needing to know its id.
+ */
+export interface PlatformCapabilities {
+  /** A true Elo-style rating, eligible for the shared rating axis. GfG's "score" is not. */
+  rating: boolean;
+  /** Publishes which problems were solved, not merely how many. */
+  problemList: boolean;
+  /** Publishes a per-day submission calendar for the heatmap. */
+  calendar: boolean;
+  /** Its solve count rolls into the cross-platform total and the daily goal. */
+  countsTowardTotal: boolean;
+  /** Needs a username to fetch. False for hand-kept counters. */
+  requiresHandle: boolean;
+  /** Refreshed over the network. False for hand-kept counters. */
+  fetchable: boolean;
+  /**
+   * "Solved today" may fall back to the most recent earlier point when yesterday is
+   * missing. True only for manual counters, where a missing day genuinely means zero;
+   * for a fetched platform it means "we did not look", which must not be guessed at.
+   */
+  baselineFromLastKnown: boolean;
+}
+
+/** Capabilities for a normal fetched platform; adapters override what differs. */
+export const FETCHED_PLATFORM: PlatformCapabilities = {
+  rating: false,
+  problemList: false,
+  calendar: false,
+  countsTowardTotal: true,
+  requiresHandle: true,
+  fetchable: true,
+  baselineFromLastKnown: false,
+};
 
 /**
  * One problem the user has solved.
@@ -68,9 +120,11 @@ export interface PlatformStats {
 export interface PlatformAdapter {
   id: PlatformId;
   displayName: string;
-  /** Brand color used for the card accent. */
+  /** Brand color used for the card accent. Decoration only, never a data mark. */
   accent: string;
-  profileUrl(handle: string): string;
+  capabilities: PlatformCapabilities;
+  /** Undefined when the platform has no public profile page to link to. */
+  profileUrl?(handle: string): string;
   fetchStats(handle: string, signal: AbortSignal): Promise<PlatformStats>;
 }
 

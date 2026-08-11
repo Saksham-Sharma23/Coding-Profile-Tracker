@@ -1,5 +1,10 @@
 import { getJson } from './http';
-import { ScrapeError, type PlatformAdapter, type PlatformStats } from './types';
+import {
+  FETCHED_PLATFORM,
+  ScrapeError,
+  type PlatformAdapter,
+  type PlatformStats,
+} from './types';
 
 const PLATFORM = 'hackerrank' as const;
 const BASE = 'https://www.hackerrank.com';
@@ -80,6 +85,9 @@ export const hackerrank: PlatformAdapter = {
   id: PLATFORM,
   displayName: 'HackerRank',
   accent: '#2ec866',
+  // Reports no solve count at all — its badges overlap, so any total derived from them
+  // double-counts. Numerically a no-op, but it makes that a declared fact.
+  capabilities: { ...FETCHED_PLATFORM, countsTowardTotal: false },
   profileUrl: (handle) => `${BASE}/profile/${encodeURIComponent(handle)}`,
 
   async fetchStats(handle, signal) {

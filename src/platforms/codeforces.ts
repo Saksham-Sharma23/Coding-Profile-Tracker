@@ -1,5 +1,6 @@
 import { getJson, sleep } from './http';
 import {
+  FETCHED_PLATFORM,
   HandleNotFoundError,
   ScrapeError,
   type PlatformAdapter,
@@ -166,6 +167,7 @@ export const codeforces: PlatformAdapter = {
   id: PLATFORM,
   displayName: 'Codeforces',
   accent: '#1f8acb',
+  capabilities: { ...FETCHED_PLATFORM, rating: true, problemList: true },
   profileUrl: (handle) => `https://codeforces.com/profile/${encodeURIComponent(handle)}`,
 
   async fetchStats(handle, signal) {

@@ -1,5 +1,5 @@
 import {
-  PLATFORM_IDS,
+  BUILTIN_PLATFORM_IDS,
   type PlatformId,
   type PlatformStats,
   type SolvedProblem,
@@ -142,7 +142,7 @@ export function migrate(raw: unknown): TrackerState {
   };
 
   // Drop keys for platforms that no longer exist so stale data cannot resurface.
-  const known = new Set<string>(PLATFORM_IDS);
+  const known = new Set<string>(BUILTIN_PLATFORM_IDS);
   for (const bag of [
     merged.settings.handles,
     merged.settings.enabled,
@@ -182,7 +182,7 @@ export function isThemePref(value: unknown): value is ThemePref {
 /** Keeps only real platform ids, de-duplicated, so a stale blob cannot smuggle junk in. */
 function sanitizeIds(value: unknown): PlatformId[] {
   if (!Array.isArray(value)) return [];
-  const known = new Set<string>(PLATFORM_IDS);
+  const known = new Set<string>(BUILTIN_PLATFORM_IDS);
   return [
     ...new Set(value.filter((id): id is PlatformId => typeof id === 'string' && known.has(id))),
   ];

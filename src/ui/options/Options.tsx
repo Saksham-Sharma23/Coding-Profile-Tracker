@@ -37,7 +37,7 @@ export function Options() {
     if (!loading) setDrafts(state.settings.handles);
   }, [loading]);
 
-  const adapters = orderedAdapters(state.settings.order);
+  const adapters = orderedAdapters(state.settings.order, []);
 
   function flash(message: string) {
     setNote(message);

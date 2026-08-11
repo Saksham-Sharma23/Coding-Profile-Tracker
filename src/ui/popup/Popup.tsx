@@ -17,7 +17,7 @@ export function Popup() {
 
   useThemeMirror(state.settings.theme, loading);
 
-  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order));
+  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order, []));
 
   // Refresh on open when the data has aged out, so the popup reflects reality without
   // the user pressing anything. Cached values render immediately meanwhile.
@@ -83,7 +83,7 @@ export function Popup() {
               <PlatformRow
                 key={adapter.id}
                 adapter={adapter}
-                handle={state.settings.handles[adapter.id]!}
+                handle={state.settings.handles[adapter.id]}
                 snapshot={state.snapshots[adapter.id]}
                 history={state.history[adapter.id]}
                 solvedProblems={state.solved[adapter.id]}

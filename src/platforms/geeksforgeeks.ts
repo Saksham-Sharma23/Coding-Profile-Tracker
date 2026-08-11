@@ -1,5 +1,6 @@
 import { request } from './http';
 import {
+  FETCHED_PLATFORM,
   HandleNotFoundError,
   ScrapeError,
   type PlatformAdapter,
@@ -71,6 +72,8 @@ export const geeksforgeeks: PlatformAdapter = {
   id: PLATFORM,
   displayName: 'GeeksforGeeks',
   accent: '#2f8d46',
+  // `score` is a points total, not an Elo rating, so it stays off the rating axis.
+  capabilities: { ...FETCHED_PLATFORM },
   profileUrl: (handle) => `https://www.geeksforgeeks.org/user/${encodeURIComponent(handle)}/`,
 
   async fetchStats(handle, signal) {

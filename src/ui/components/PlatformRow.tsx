@@ -15,7 +15,8 @@ import './PlatformRow.css';
 
 interface Props {
   adapter: PlatformAdapter;
-  handle: string;
+  /** Absent for hand-kept counters, which need no username. */
+  handle?: string;
   snapshot: Snapshot | undefined;
   history: HistoryPoint[] | undefined;
   solvedProblems: SolvedProblem[] | undefined;
@@ -57,6 +58,7 @@ export function PlatformRow({
   const hasBreakdown =
     breakdown !== undefined &&
     (breakdown.easy ?? breakdown.medium ?? breakdown.hard) !== undefined;
+  const profileHref = handle && adapter.profileUrl ? adapter.profileUrl(handle) : undefined;
 
   return (
     <article className="prow surface" style={{ borderLeftColor: adapter.accent }}>
@@ -90,10 +92,15 @@ export function PlatformRow({
 
       <div id={panelId} className="prow-body" hidden={!open}>
         <div className="row spread prow-handle">
-          <a href={adapter.profileUrl(handle)} target="_blank" rel="noreferrer">
-            {handle}
-            <ExternalIcon size={11} />
-          </a>
+          {/* A hand-kept counter has no username and may have no page to link to. */}
+          {profileHref ? (
+            <a href={profileHref} target="_blank" rel="noreferrer">
+              {handle ?? 'Open'}
+              <ExternalIcon size={11} />
+            </a>
+          ) : (
+            <span className="muted">{handle ?? ''}</span>
+          )}
           <span className="muted prow-time">
             {busy ? 'Refreshing…' : `Updated ${timeAgo(snapshot?.fetchedAt ?? 0)}`}
           </span>
@@ -124,7 +131,7 @@ export function PlatformRow({
 
         {trend && <Sparkline points={trend.points} label={trend.label} />}
 
-        <RecentProblems platform={adapter.id} problems={solvedProblems} />
+        <RecentProblems adapter={adapter} problems={solvedProblems} />
 
         {stats?.badges?.length ? (
           <ul className="prow-badges">

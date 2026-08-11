@@ -63,7 +63,7 @@ async function handle(message: Message): Promise<Response> {
     }
 
     case 'validate-handle': {
-      const adapter = getAdapter(message.platform);
+      const adapter = getAdapter(message.platform, []);
       if (!adapter) return { type: 'validate-result', ok: false, error: 'Not supported yet' };
 
       const controller = new AbortController();

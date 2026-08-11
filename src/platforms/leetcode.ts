@@ -1,5 +1,6 @@
 import { postJson } from './http';
 import {
+  FETCHED_PLATFORM,
   HandleNotFoundError,
   ScrapeError,
   type PlatformAdapter,
@@ -203,6 +204,8 @@ export const leetcode: PlatformAdapter = {
   id: PLATFORM,
   displayName: 'LeetCode',
   accent: '#ffa116',
+  // The only platform publishing a per-day submission calendar.
+  capabilities: { ...FETCHED_PLATFORM, rating: true, problemList: true, calendar: true },
   profileUrl: (handle) => `https://leetcode.com/u/${encodeURIComponent(handle)}/`,
 
   async fetchStats(handle, signal) {

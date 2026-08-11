@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlatformAdapter, PlatformId, PlatformStats } from '@/platforms/types';
+import { FETCHED_PLATFORM, type PlatformAdapter, type PlatformId, type PlatformStats } from '@/platforms/types';
 import { defaultState, type HistoryPoint, type TrackerState } from '@/storage/schema';
 import { bestStreak, isExpanded, solvedToday, totalSolved, trendFor, visiblePlatforms } from './progress';
 
@@ -10,6 +10,7 @@ function adapter(id: PlatformId, displayName: string = id): PlatformAdapter {
     id,
     displayName,
     accent: '#000',
+    capabilities: FETCHED_PLATFORM,
     profileUrl: (handle) => `https://example.com/${handle}`,
     fetchStats: () => Promise.reject(new Error('not used')),
   };

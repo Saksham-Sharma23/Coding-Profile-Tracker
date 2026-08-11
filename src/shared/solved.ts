@@ -10,8 +10,8 @@ import type { PlatformAdapter, PlatformId, SolvedProblem } from '@/platforms/typ
 import { isoDay } from '@/storage/repo';
 import type { TrackerState } from '@/storage/schema';
 
-/** Platforms that expose which problems were solved, not just how many. */
-export const PROBLEM_LIST_PLATFORMS: PlatformId[] = ['codeforces', 'leetcode'];
+// Which platforms expose a problem list is now a capability each adapter declares,
+// rather than an allowlist here that a user-defined platform could never join.
 
 export interface SolvedEntry extends SolvedProblem {
   platform: PlatformId;
@@ -64,7 +64,7 @@ export function filterSolved(entries: SolvedEntry[], query: string): SolvedEntry
  */
 export function coverageNote(tracked: PlatformAdapter[]): string | undefined {
   const missing = tracked
-    .filter((adapter) => !PROBLEM_LIST_PLATFORMS.includes(adapter.id))
+    .filter((adapter) => !adapter.capabilities.problemList)
     .map((adapter) => adapter.displayName);
 
   if (!missing.length) return undefined;

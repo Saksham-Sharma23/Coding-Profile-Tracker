@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlatformAdapter, PlatformId } from '@/platforms/types';
+import { FETCHED_PLATFORM, type PlatformAdapter, type PlatformId } from '@/platforms/types';
 import { defaultState } from '@/storage/schema';
 import { formatCountdown, nextContest } from './countdown';
 
@@ -29,6 +29,7 @@ describe('nextContest', () => {
     id,
     displayName: id,
     accent: '#000',
+    capabilities: FETCHED_PLATFORM,
     profileUrl: () => '',
     fetchStats: () => Promise.reject(new Error('not used')),
   });

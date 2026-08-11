@@ -34,7 +34,7 @@ export function badgeText(progress: TodayProgress): string {
 export async function updateBadge(): Promise<void> {
   try {
     const state = await readState();
-    const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order));
+    const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order, []));
     const text = badgeText(solvedToday(state, tracked, isoDay(Date.now())));
 
     await chrome.action.setBadgeText({ text });

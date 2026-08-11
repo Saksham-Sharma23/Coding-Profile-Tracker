@@ -1,20 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import type { PlatformAdapter, PlatformId } from '@/platforms/types';
+import {
+  FETCHED_PLATFORM,
+  type PlatformAdapter,
+  type PlatformCapabilities,
+  type PlatformId,
+} from '@/platforms/types';
 import { defaultState } from '@/storage/schema';
 import { allSolved, coverageNote, filterSolved, solvedOnDay } from './solved';
 
-function adapter(id: PlatformId, displayName: string): PlatformAdapter {
+function adapter(
+  id: PlatformId,
+  displayName: string,
+  caps: Partial<PlatformCapabilities> = {},
+): PlatformAdapter {
   return {
     id,
     displayName,
     accent: '#000',
+    capabilities: { ...FETCHED_PLATFORM, ...caps },
     profileUrl: () => '',
     fetchStats: () => Promise.reject(new Error('not used')),
   };
 }
 
-const CF = adapter('codeforces', 'Codeforces');
-const LC = adapter('leetcode', 'LeetCode');
+// The two platforms that publish a problem list.
+const CF = adapter('codeforces', 'Codeforces', { problemList: true });
+const LC = adapter('leetcode', 'LeetCode', { problemList: true });
 
 const DAY = 86_400_000;
 const T = Date.parse('2026-08-06T10:00:00Z');

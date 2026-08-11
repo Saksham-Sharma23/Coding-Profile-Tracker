@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { orderedAdapters } from '@/platforms/registry';
-import type { PlatformId } from '@/platforms/types';
 import { formatCountdown, nextContest } from '@/shared/countdown';
 import { bestStreak, solvedToday, totalSolved, visiblePlatforms } from '@/shared/progress';
 import { isoDay } from '@/storage/repo';
@@ -16,18 +15,16 @@ import { SolvedLog } from './SolvedLog';
 import './dashboard.css';
 
 /**
- * Only platforms whose number is a true rating appear in the trend chart, in a fixed
- * slot order. GeeksforGeeks is excluded on purpose: its "score" is a points total,
- * not an Elo rating, and plotting it on the same axis would misrepresent it.
+ * Only platforms declaring a true rating capability appear in the trend chart.
+ * GeeksforGeeks is excluded because its "score" is a points total, not an Elo rating,
+ * and plotting it on the same axis would misrepresent it.
  *
- * Colors are bound to the platform, never to its position in the filtered list, so
- * dropping a series never repaints the survivors.
+ * There are exactly three validated categorical slots, so the chart carries at most
+ * three series. Colours are assigned by rank among ALL rating-capable platforms in
+ * display order — not by position in the filtered list — so untracking one never
+ * repaints the survivors.
  */
-const RATING_SLOTS: { id: PlatformId; colorVar: string }[] = [
-  { id: 'codeforces', colorVar: '--viz-1' },
-  { id: 'leetcode', colorVar: '--viz-2' },
-  { id: 'codechef', colorVar: '--viz-3' },
-];
+const CHART_SLOTS = ['--viz-1', '--viz-2', '--viz-3'];
 
 export function Dashboard() {
   const { state, loading, refreshing, refresh } = useTracker();
@@ -35,25 +32,38 @@ export function Dashboard() {
 
   useThemeMirror(state.settings.theme, loading);
 
-  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order));
+  // Phase 0: no user-defined platforms exist yet, so the custom list is empty.
+  const ordered = orderedAdapters(state.settings.order, []);
+  const tracked = visiblePlatforms(state, ordered);
   const trackedIds = new Set(tracked.map((adapter) => adapter.id));
+
+  // Slots are claimed in display order across every rating-capable platform, tracked or
+  // not, so a platform's colour never depends on which of its neighbours are visible.
+  const ratedAll = ordered.filter((adapter) => adapter.capabilities.rating);
+  const charted = ratedAll.slice(0, CHART_SLOTS.length).filter((a) => trackedIds.has(a.id));
+  const omitted = ratedAll.length - CHART_SLOTS.length;
 
   const series = useMemo<Series[]>(
     () =>
-      RATING_SLOTS.filter((slot) => trackedIds.has(slot.id)).map((slot) => ({
-        id: slot.id,
-        name: tracked.find((a) => a.id === slot.id)?.displayName ?? slot.id,
-        colorVar: slot.colorVar,
-        points: (state.history[slot.id] ?? [])
+      charted.map((adapter) => ({
+        id: adapter.id,
+        name: adapter.displayName,
+        colorVar: CHART_SLOTS[ratedAll.indexOf(adapter)]!,
+        points: (state.history[adapter.id] ?? [])
           .filter((point) => point.rating !== undefined)
           .map((point) => ({ d: point.d, v: point.rating! })),
       })),
     [state.history, state.settings.handles, state.settings.enabled, state.settings.order],
   );
 
-  // LeetCode is the only platform exposing a per-day submission calendar.
-  const calendar = trackedIds.has('leetcode')
-    ? state.snapshots.leetcode?.stats?.activity?.calendar
+  // First tracked platform that publishes a per-day calendar and actually has one.
+  // Calendars are never merged across platforms — different denominators.
+  const calendarSource = tracked.find(
+    (adapter) =>
+      adapter.capabilities.calendar && state.snapshots[adapter.id]?.stats?.activity?.calendar,
+  );
+  const calendar = calendarSource
+    ? state.snapshots[calendarSource.id]?.stats?.activity?.calendar
     : undefined;
 
   const total = totalSolved(state, tracked);
@@ -116,7 +126,17 @@ export function Dashboard() {
 
           <RatingChart series={series} />
 
-          {calendar && <Heatmap calendar={calendar} today={today} sourceName="LeetCode" />}
+          {omitted > 0 && (
+            <p className="muted chart-note">
+              Charting {CHART_SLOTS.length} of {ratedAll.length} rated platforms — the
+              palette has {CHART_SLOTS.length} validated series slots, and reusing one
+              would make two platforms indistinguishable.
+            </p>
+          )}
+
+          {calendar && calendarSource && (
+            <Heatmap calendar={calendar} today={today} sourceName={calendarSource.displayName} />
+          )}
 
           <SolvedLog state={state} tracked={tracked} today={today} />
 
@@ -125,7 +145,7 @@ export function Dashboard() {
               <PlatformCard
                 key={adapter.id}
                 adapter={adapter}
-                handle={state.settings.handles[adapter.id]!}
+                handle={state.settings.handles[adapter.id]}
                 snapshot={state.snapshots[adapter.id]}
                 history={state.history[adapter.id]}
                 today={today}

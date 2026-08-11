@@ -14,7 +14,8 @@ import './PlatformCard.css';
 
 interface Props {
   adapter: PlatformAdapter;
-  handle: string;
+  /** Absent for hand-kept counters, which need no username. */
+  handle?: string;
   snapshot: Snapshot | undefined;
   history: HistoryPoint[] | undefined;
   today: string;
@@ -45,6 +46,7 @@ export function PlatformCard({
   const hasBreakdown =
     breakdown !== undefined &&
     (breakdown.easy ?? breakdown.medium ?? breakdown.hard) !== undefined;
+  const profileHref = handle && adapter.profileUrl ? adapter.profileUrl(handle) : undefined;
 
   return (
     <article className="card surface" style={{ borderLeftColor: adapter.accent }}>
@@ -53,15 +55,15 @@ export function PlatformCard({
           <span className="dot" style={{ background: adapter.accent }} />
           <strong>{adapter.displayName}</strong>
         </div>
-        <a
-          href={adapter.profileUrl(handle)}
-          target="_blank"
-          rel="noreferrer"
-          className="muted card-handle"
-        >
-          {handle}
-          <ExternalIcon size={11} />
-        </a>
+        {/* A hand-kept counter has no username and may have no page to link to. */}
+        {profileHref ? (
+          <a href={profileHref} target="_blank" rel="noreferrer" className="muted card-handle">
+            {handle ?? 'Open'}
+            <ExternalIcon size={11} />
+          </a>
+        ) : (
+          handle && <span className="muted card-handle">{handle}</span>
+        )}
       </header>
 
       {stats ? (

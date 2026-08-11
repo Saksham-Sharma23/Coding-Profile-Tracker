@@ -40,7 +40,7 @@ export interface RefreshOutcome {
  * or abort its siblings.
  */
 export async function refreshPlatform(platform: PlatformId, handle: string): Promise<RefreshOutcome> {
-  const adapter = getAdapter(platform);
+  const adapter = getAdapter(platform, []);
   if (!adapter) {
     return { platform, ok: false, error: 'Platform not supported yet' };
   }

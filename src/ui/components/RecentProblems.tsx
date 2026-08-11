@@ -1,10 +1,9 @@
-import type { PlatformId, SolvedProblem } from '@/platforms/types';
-import { PROBLEM_LIST_PLATFORMS } from '@/shared/solved';
+import type { PlatformAdapter, SolvedProblem } from '@/platforms/types';
 import { formatDay } from '../viz/scales';
 import './RecentProblems.css';
 
 interface Props {
-  platform: PlatformId;
+  adapter: PlatformAdapter;
   problems: SolvedProblem[] | undefined;
   limit?: number;
 }
@@ -16,8 +15,8 @@ interface Props {
  * "no problems" and "this site does not tell us" are different statements, and only
  * one of them is true here.
  */
-export function RecentProblems({ platform, problems, limit = 5 }: Props) {
-  if (!PROBLEM_LIST_PLATFORMS.includes(platform)) return null;
+export function RecentProblems({ adapter, problems, limit = 5 }: Props) {
+  if (!adapter.capabilities.problemList) return null;
 
   const recent = (problems ?? []).slice(0, limit);
   if (!recent.length) {

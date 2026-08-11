@@ -60,7 +60,7 @@ export async function maybeNotify(now = Date.now()): Promise<boolean> {
   const { reminder, dailyGoal } = state.settings;
   if (!reminder.enabled || !withinReminderWindow(reminder.hour, now)) return false;
 
-  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order));
+  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order, []));
   if (!tracked.length) return false;
 
   const { solved } = solvedToday(state, tracked, isoDay(now));

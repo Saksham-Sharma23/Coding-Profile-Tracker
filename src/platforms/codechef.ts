@@ -2,6 +2,7 @@ import { getText } from './http';
 import { parseCodechefHtml } from '@/offscreen/client';
 import type { CodechefFields } from '@/offscreen/protocol';
 import {
+  FETCHED_PLATFORM,
   HandleNotFoundError,
   ScrapeError,
   type PlatformAdapter,
@@ -59,6 +60,7 @@ export const codechef: PlatformAdapter = {
   id: PLATFORM,
   displayName: 'CodeChef',
   accent: '#5b4638',
+  capabilities: { ...FETCHED_PLATFORM, rating: true },
   profileUrl: (handle) => `${BASE}/users/${encodeURIComponent(handle)}`,
 
   async fetchStats(handle, signal) {
