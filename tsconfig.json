@@ -20,9 +20,13 @@
     "noUncheckedIndexedAccess": true,
 
     "types": ["chrome", "node", "vite/client", "vitest/globals"],
-    "baseUrl": ".",
+
+    // No baseUrl: since TS 4.4 `paths` entries resolve relative to this file, and
+    // baseUrl's other job — resolving bare specifiers against a root directory — is
+    // legacy behaviour nothing here uses. Vite resolves the same alias itself in
+    // vite.config.ts, so this mapping only informs the type checker.
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./nope/*"]
     }
   },
   "include": ["src", "vite.config.ts", "manifest.config.ts"]
