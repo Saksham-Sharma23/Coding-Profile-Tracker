@@ -142,12 +142,7 @@
 
 /* ---- skeleton --------------------------------------------------------- */
 
-.popup .skeleton {
-  border-radius: var(--radius);
-  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
-  background-size: 200% 100%;
-  animation: skeleton-sweep 1.4s ease-in-out infinite;
-}
+/* The .skeleton primitive itself now lives in theme.css, shared with the dashboard. */
 
 .popup .rows[aria-hidden='true'] {
   padding: var(--s-4);
@@ -159,10 +154,4 @@
 
 .skeleton-row {
   height: 38px;
-}
-
-@keyframes skeleton-sweep {
-  to {
-    background-position: -200% 0;
-  }
 }

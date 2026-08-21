@@ -21,7 +21,14 @@ no account, and there is no server to pay for. All state lives in `chrome.storag
 - **Contest countdown** — the next Codeforces or LeetCode contest, on the platforms you
   track.
 - **Daily reminder** — optional, one notification a day, and only when you are behind.
-- **Dashboard** — rating chart, submission heatmap, per-platform cards.
+- **Dashboard** — a sidebar over four views: Overview (today's goal, rating chart,
+  heatmap), Platforms (a card each), Problems (the searchable log) and Settings. The
+  rail shows every tracked platform and flags a broken one from any view.
+- **Your own platforms** — track anything no API will report, like Striver's SDE Sheet
+  or NeetCode 150, as a counter you keep by hand with `+`/`−` on the popup or the
+  dashboard. Each one chooses whether it counts toward the cross-platform total:
+  curated sheets are lists *of* LeetCode problems, so counting both counts the same
+  work twice.
 - **Control** — per-platform pause and reorder, light/dark/system theme, JSON
   export/import, and a full reset.
 
@@ -35,7 +42,8 @@ tools needed for this path.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and select the unzipped folder.
 
-The options page opens automatically; add a username for any platform you want tracked.
+Settings opens automatically; add a username for any platform you want tracked. It is
+the same page as the dashboard, on its Settings view.
 
 Two things to expect from a manually loaded extension: Chrome shows a "disable
 developer mode extensions" prompt on startup, which is normal and can be dismissed, and
@@ -83,7 +91,21 @@ adapter behind a shared interface, so a change to one cannot affect the others.
 | LeetCode | Public GraphQL, no auth | Unknown users return **HTTP 200** with `matchedUser: null`. `submissionCalendar` is a JSON *string* needing a second parse; contest rating is a float and is rounded. |
 | HackerRank | Undocumented JSON | `/rest/hackers/{h}/badges` + `/rest/contests/master/hackers/{h}/profile`. 404s for unknown users. No stability guarantee. |
 | GeeksforGeeks | `authapi.geeksforgeeks.org` JSON | Profile pages are Next.js RSC streams with no embedded JSON, but the auth API returns the same numbers cleanly. Unknown handles return 400 with an **empty body**. |
-| CodeChef | HTML scrape | The only scraper. Unknown users get the **generic landing page with HTTP 200**, so a missing `.rating-number` is how "no such user" is detected. |
+| CodeChef | HTML scrape | The only scraper. Unknown users get the **generic landing page with HTTP 200**, so the page is classified by its profile shell and `<title>` — see below. |
+
+CodeChef needs one more note, because getting it wrong cost real debugging time. Page
+existence is decided by the profile shell (`.user-profile-container`) and the
+`"CodeChef User Profile"` title, **not** by whether a rating was found. An account that
+has never entered a rated contest has no rating block at all, and inferring existence
+from the rating reported those users as nonexistent — pointing the blame at a username
+that was perfectly correct. Anything unrecognisable now reports itself as unrecognisable,
+quoting the page title and byte count, rather than guessing at "no such user".
+
+CodeChef also renders **two** rating blocks — the classic rating in `#rating-block-all`
+and a separate DSA rating in `#rating-block-dsa-monday`, whose numbers are unrelated (a
+3355-rated account reads `NA` with a highest of 0 in the second). Every rating query is
+scoped to the first. An unscoped `.rating-number` lookup finds the right one only
+because it happens to be emitted first.
 
 ### Which problems, not just how many
 
@@ -125,6 +147,15 @@ refetched at most every six hours, riding the existing alarm rather than adding 
 - **Streaks are attributed, never merged.** Only LeetCode and GeeksforGeeks publish
   one, so it renders as "12 days · LeetCode". A bare "12-day streak" would read as a
   cross-platform figure the tracker has no way to compute.
+- **A hand-kept counter never counts as a fetch.** Its snapshot is marked `manual`, so
+  clicking `+1` cannot convince the popup that five hours-old platforms are fresh, and
+  the dashboard's "Fetched 2m ago" never describes something that was typed rather than
+  fetched.
+- **A missing day means different things for a counter and a fetch.** For a fetched
+  platform, no history point for yesterday means "we did not look", which is unknowable
+  and stays flagged. For a counter it means the count did not move — so it falls back
+  to the last value on record, never to `0`, which would report a standing count of 191
+  as 191 problems solved today.
 
 ## Architecture
 
@@ -135,7 +166,7 @@ src/
   shared/          derived numbers used by both the UI and the service worker
   offscreen/       DOM parsing host (service workers have no DOMParser)
   storage/         versioned schema, migrations, typed repo
-  ui/              popup, dashboard, options, shared components, theme tokens
+  ui/              popup, dashboard shell + views + settings, shared components, tokens
   ui/viz/          hand-rolled SVG charts
   content/         username auto-detect (suggestions only)
 scripts/
@@ -149,8 +180,17 @@ The popup renders `PlatformRow` (collapsible), the dashboard renders `PlatformCa
 (grid). Both compose the same leaves — `StatBlock`, `Delta`, `Sparkline`,
 `DifficultyBar`, `PlatformError` — so a change lands on both at once.
 
-Adding a sixth platform is a new file in `platforms/` plus one line in
-`platforms/registry.ts`.
+Adding a sixth built-in platform is a new file in `platforms/` plus one line in
+`platforms/registry.ts`. User-defined platforms take a different route: a descriptor in
+`settings.custom` becomes an adapter through `platforms/custom/adapter.ts`, so
+everything downstream — the popup, the badge, the reminder, the storage layer — cannot
+tell it from a built-in.
+
+The dashboard and the options page are **one component with two entry points**.
+`options_page` has to name a real declared page and cannot carry a URL hash, so
+`ui/options/main.tsx` renders the dashboard shell with `initialView="settings"` instead
+of redirecting. `chrome.runtime.openOptionsPage()` therefore lands somewhere with the
+sidebar and every other view one click away.
 
 Two MV3 constraints shape the design:
 

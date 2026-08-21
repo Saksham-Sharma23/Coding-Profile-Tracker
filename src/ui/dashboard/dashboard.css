@@ -1,84 +1,215 @@
-.dashboard {
-  max-width: 900px;
-  margin: 0 auto;
+/*
+ * The app shell: a fixed rail beside a scrolling main column.
+ *
+ * Built entirely on the tokens in theme.css and viz/tokens.css. Those palettes carry
+ * contrast ratios validated all-pairs in light and dark, with the candidate steps that
+ * failed recorded in comments — nothing here introduces a colour or a type size.
+ */
+.shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.shell-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.view {
+  max-width: 1200px;
   padding: var(--s-7) var(--s-6) 64px;
-}
-
-.dashboard h1 {
-  font-size: var(--fs-lg);
-  margin: 0;
-}
-
-.dash-head {
-  margin-bottom: var(--s-6);
-}
-
-.dash-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-
-.dashboard .totals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--s-4);
-  margin-bottom: var(--s-5);
-}
-
-/* Surface/border/radius come from the shared .surface primitive. */
-.dashboard .tile {
-  padding: var(--s-4) var(--s-5);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--s-5);
 }
 
-.dashboard .tile-value {
-  font-size: var(--fs-xl);
+.view-title {
+  margin: 0;
+  font-size: var(--fs-lg);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
 }
+
+/* Focused programmatically on a view change, so the switch is announced. It is not a
+   click target, and a visible ring on it would read as a mistake. */
+.view-title:focus {
+  outline: none;
+}
+
+.view-title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.view-empty {
+  max-width: 46ch;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.view-link {
+  align-self: flex-start;
+}
+
+/* ---- today band --------------------------------------------------------- */
 
 /*
- * Exactly one hero figure per view. Proportional figures here, not tabular — at this
- * size tabular-nums gives every digit a zero's width and the number looks loose.
+ * The first thing on the page, because "am I on track today" is the question the
+ * extension exists to answer. The goal ring was previously only in the popup, where it
+ * had the least room.
  */
-.dashboard .hero-tile {
-  grid-column: span 2;
-  justify-content: center;
+.today-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-6);
+  padding: var(--s-6);
+  box-shadow: var(--shadow-1);
 }
 
-.dashboard .hero-value {
+.today-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+.today-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.today-value {
   font-size: var(--fs-hero);
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
 }
 
-.dashboard .tile-label {
+.today-label {
+  font-size: var(--fs-sm);
+}
+
+.today-side {
+  display: flex;
+  gap: var(--s-7);
+}
+
+.today-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Proportional figures, not tabular — at this size tabular-nums gives every digit a
+   zero's width and the number looks loose. */
+.hero-value {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.today-stat-value {
+  gap: var(--s-1);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.today-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-xs);
+}
+
+/* ---- content ------------------------------------------------------------ */
+
+.trends {
+  display: grid;
+  gap: var(--s-5);
+}
+
+@media (min-width: 1100px) {
+  /* Side by side only where both stay legible; below that they stack. */
+  .trends:has(> * + *) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s-4);
+}
+
+.tile {
+  padding: var(--s-4) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-1);
+}
+
+.tile-value {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.tile-label {
   font-size: var(--fs-2xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.dashboard .contest {
-  margin-bottom: var(--s-5);
+.chart-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+}
+
+.contest {
   padding: var(--s-3) var(--s-5);
   font-size: var(--fs-xs);
 }
 
-.dashboard .grid {
+.grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--s-4);
 }
 
-.dashboard .pad {
-  padding: var(--s-7) 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-4);
+.grid .card,
+.viz {
+  box-shadow: var(--shadow-1);
+}
+
+/* ---- loading ------------------------------------------------------------ */
+
+.skeleton-title {
+  height: 26px;
+  width: 180px;
+}
+
+.skeleton-band {
+  height: 120px;
+}
+
+.skeleton-chart {
+  height: 220px;
+}
+
+@media (max-width: 760px) {
+  .view {
+    padding: var(--s-5) var(--s-4) 48px;
+  }
+
+  .today-band {
+    gap: var(--s-5);
+    padding: var(--s-5);
+  }
+
+  .today-side {
+    gap: var(--s-6);
+  }
 }

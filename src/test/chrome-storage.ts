@@ -14,6 +14,10 @@ export function mockChromeStorage(): void {
         get: async (key: string) => ({ [key]: bag[key] }),
         set: async (patch: Record<string, unknown>) => void Object.assign(bag, patch),
       },
+      // useTracker subscribes on mount so every open surface stays in step. Nothing in
+      // these tests writes from a second surface, so the listeners are never called.
+      onChanged: { addListener: () => {}, removeListener: () => {} },
     },
+    runtime: { openOptionsPage: async () => {}, sendMessage: async () => ({ type: 'ack' }) },
   };
 }

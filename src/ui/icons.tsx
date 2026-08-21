@@ -79,6 +79,39 @@ export function ArrowDownIcon(props: IconProps) {
   );
 }
 
+export function ChartIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="m7 15 4-5 4 3 5-7" />
+    </Svg>
+  );
+}
+
+export function GridIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </Svg>
+  );
+}
+
+export function ListIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M3 6h.01" />
+      <path d="M3 12h.01" />
+      <path d="M3 18h.01" />
+    </Svg>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <Svg {...props}>

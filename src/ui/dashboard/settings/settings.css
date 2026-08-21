@@ -1,12 +1,12 @@
+/*
+ * The settings view. Now a child of the dashboard shell rather than its own page, so
+ * the outer padding and the page heading come from .view and .view-title — this only
+ * constrains the measure, since a column of forms is unreadable at full width.
+ */
 .options {
   max-width: 680px;
-  margin: 0 auto;
-  padding: var(--s-7) var(--s-6) 64px;
-}
-
-.options h1 {
-  font-size: var(--fs-lg);
-  margin: 0 0 var(--s-2);
+  display: flex;
+  flex-direction: column;
 }
 
 .options h2 {

@@ -1,0 +1,195 @@
+/*
+ * The persistent left rail.
+ *
+ * Fixed rather than scrolling with the content: its job is to answer "where am I" and
+ * "is anything broken" from any position in any view, which it cannot do if it scrolls
+ * away. The main column owns the scroll instead.
+ */
+.rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  width: 224px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-4);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 var(--s-2);
+  font-weight: 600;
+}
+
+.rail-brand-mark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.rail-nav,
+.rail-platforms ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rail-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 7px var(--s-3);
+  border-color: transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-align: left;
+}
+
+.rail-item:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.rail-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.rail-item svg {
+  flex: none;
+}
+
+.rail-heading {
+  margin: 0 0 var(--s-2);
+  padding: 0 var(--s-3);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.rail-platform {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 5px var(--s-3);
+  font-size: var(--fs-xs);
+}
+
+.rail-platform-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-platform-value {
+  flex: none;
+  font-size: var(--fs-2xs);
+}
+
+/* The point of the rail list: a broken platform is visible from every view, including
+   the settings view where you would go to fix it. */
+.rail-platform-alert {
+  flex: none;
+  color: var(--error);
+}
+
+.rail-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.rail-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+}
+
+.rail-updated {
+  font-size: var(--fs-2xs);
+  text-align: center;
+}
+
+/* ---- narrow: icons only ------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .rail {
+    width: 60px;
+    padding: var(--s-5) var(--s-2);
+    align-items: stretch;
+  }
+
+  .rail-brand-text,
+  .rail-item-text,
+  .rail-platforms,
+  .rail-updated {
+    display: none;
+  }
+
+  .rail-item,
+  .rail-refresh {
+    justify-content: center;
+    padding: 8px 0;
+  }
+}
+
+/* ---- narrowest: a tab row instead --------------------------------------- */
+
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .rail {
+    display: none;
+  }
+
+  .tabbar {
+    display: flex;
+    gap: var(--s-1);
+    padding: var(--s-3) var(--s-4) 0;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabbar-item {
+    flex: none;
+    border-color: transparent;
+    background: transparent;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    color: var(--muted);
+    text-transform: capitalize;
+  }
+
+  .tabbar-item.active {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    font-weight: 500;
+  }
+}
