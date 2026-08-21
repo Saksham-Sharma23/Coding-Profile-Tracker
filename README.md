@@ -1,290 +1,141 @@
 # Coding Profile Tracker
 
-A Chrome extension that shows your LeetCode, Codeforces, HackerRank, CodeChef and
-GeeksforGeeks progress in one place, so you don't have to open five sites to check
-where you are.
+A Chrome extension that shows your **LeetCode, Codeforces, HackerRank, CodeChef and
+GeeksforGeeks** progress in one place — so you stop opening five sites to find out where
+you are.
 
-**No backend.** An MV3 service worker with `host_permissions` is exempt from CORS, so
-the extension talks to each platform directly. Nothing leaves your machine, there is
-no account, and there is no server to pay for. All state lives in `chrome.storage.local`.
+Everything runs in your browser. There is no account, no server and no telemetry: the
+extension reads each platform's public profile data directly and keeps it all in local
+storage.
+
+[![Latest release](https://img.shields.io/github/v/release/Saksham-Sharma23/Coding-Profile-Tracker)](https://github.com/Saksham-Sharma23/Coding-Profile-Tracker/releases/latest)
+
+<!-- Screenshots go well right here: drop PNGs in docs/ and reference them, e.g.
+     ![Dashboard](docs/dashboard.png) -->
 
 ## What it does
 
-- **Popup** — a summary strip (solved today against your goal, streak, lifetime total)
-  over one collapsible row per platform. Rows remember whether they were open.
-- **Trends** — every row draws a sparkline from history the extension has been
-  collecting since install; nothing extra is fetched for it.
-- **Problem log** — which problems you solved, not just how many, searchable by name,
-  platform or tag on the dashboard. Codeforces and LeetCode only (see below).
-- **Toolbar badge** — today's solve count, so progress is visible without opening
-  anything.
-- **Contest countdown** — the next Codeforces or LeetCode contest, on the platforms you
-  track.
-- **Daily reminder** — optional, one notification a day, and only when you are behind.
-- **Dashboard** — a sidebar over four views: Overview (today's goal, rating chart,
-  heatmap), Platforms (a card each), Problems (the searchable log) and Settings. The
-  rail shows every tracked platform and flags a broken one from any view.
-- **Your own platforms** — track anything no API will report, like Striver's SDE Sheet
-  or NeetCode 150, as a counter you keep by hand with `+`/`−` on the popup or the
-  dashboard. Each one chooses whether it counts toward the cross-platform total:
-  curated sheets are lists *of* LeetCode problems, so counting both counts the same
-  work twice.
-- **Control** — per-platform pause and reorder, light/dark/system theme, JSON
-  export/import, and a full reset.
+**Popup** — one collapsible row per platform, under a strip showing what you solved
+today against your goal, your streak, and your lifetime total. Rows remember whether you
+left them open.
+
+**Dashboard** — a sidebar over four views:
+
+| View | Shows |
+|---|---|
+| Overview | Today's goal ring, rating chart, submission heatmap |
+| Platforms | A card per platform — rating, solve counts, difficulty breakdown, badges |
+| Problems | Every problem you've solved, searchable by name, platform or tag |
+| Settings | Usernames, goals, reminders, theme, import/export |
+
+The sidebar lists every platform you track and flags a broken one from any view.
+
+**Track your own sheets.** Anything no API will report — Striver's SDE Sheet, NeetCode
+150, a book you're working through — can be added as a counter you keep by hand with
+`+` / `−`. Each one decides whether it counts toward your cross-platform total, because
+curated sheets are lists *of* LeetCode problems and counting both would count the same
+work twice.
+
+**Toolbar badge** — today's solve count, visible without opening anything.
+
+**Contest countdown** — the next Codeforces or LeetCode contest, for the platforms you
+track.
+
+**Daily reminder** — optional, one notification a day, and only when you're behind.
+
+**Your data, your call** — pause or reorder any platform, switch between light, dark and
+system themes, export everything to JSON, import it back, or delete the lot.
+
+## Supported platforms
+
+The five sites cooperate to very different degrees, so it's worth knowing what to expect:
+
+| Platform | Rating | Solve count | Which problems | Streak |
+|---|:--:|:--:|:--:|:--:|
+| LeetCode | ✅ | ✅ | Last 20, then grows | ✅ |
+| Codeforces | ✅ | ✅ | Full history | — |
+| CodeChef | ✅ | ✅ | — | — |
+| GeeksforGeeks | — | ✅ | — | ✅ |
+| HackerRank | — | — | — | — |
+
+A few notes on the gaps, since they're deliberate rather than missing features:
+
+- **LeetCode only returns your 20 most recent solves**, so the problem list starts with
+  those and grows as you keep solving. Codeforces returns everything from the first
+  refresh.
+- **HackerRank reports no solve count.** Its badges overlap each other, so any total
+  built from them would double-count. Reporting nothing beats reporting a wrong number.
+- **GeeksforGeeks' "score" isn't a rating**, so it isn't charted as one.
 
 ## Install
 
-Not on the Chrome Web Store yet, so installation is a manual load. No Node or build
-tools needed for this path.
+Not on the Chrome Web Store yet, so it's a manual load. You don't need Node or any build
+tools for this.
 
-1. Download the `.zip` from the [latest release][releases] and unzip it. **Keep the
-   unzipped folder somewhere permanent** — deleting it uninstalls the extension.
+1. Download the `.zip` from the [latest release][releases] and unzip it.
+   **Keep the unzipped folder somewhere permanent** — deleting it uninstalls the extension.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and select the unzipped folder.
 
-Settings opens automatically; add a username for any platform you want tracked. It is
-the same page as the dashboard, on its Settings view.
+Settings opens automatically — add a username for any platform you want to track, then
+hit **Save and refresh**.
 
-Two things to expect from a manually loaded extension: Chrome shows a "disable
-developer mode extensions" prompt on startup, which is normal and can be dismissed, and
-there are no automatic updates — to update, download the next release and click the
-reload arrow on the extension's card.
+Works in any Chromium browser with Manifest V3: Chrome, Edge, Brave, Opera, Arc.
 
-Works in any Chromium browser with MV3 support: Chrome, Edge, Brave, Opera, Arc.
+### Two things to expect from a manually loaded extension
+
+- Chrome shows a *"disable developer mode extensions"* prompt on startup. That's normal
+  for anything installed outside the Web Store, and it can be dismissed.
+- There are no automatic updates. To update, download the next release, unzip it over
+  the old folder, and click the reload arrow on the extension's card. **Your usernames
+  and history survive** — they live in the browser's storage, not in the folder.
 
 [releases]: https://github.com/Saksham-Sharma23/Coding-Profile-Tracker/releases/latest
 
-## Build from source
+## Run from source
+
+Requires Node 22 or newer.
 
 ```bash
+git clone https://github.com/Saksham-Sharma23/Coding-Profile-Tracker.git
+cd Coding-Profile-Tracker
 npm install
 npm run build
 ```
 
-Then load `dist/` as above. `npm run dev` runs Vite with hot reload against the same
-output.
+Then load the generated `dist/` folder via **Load unpacked**, as in step 2 above.
 
-`dist/` is deliberately not committed — it is ~40 generated files with content-hashed
-names, so it would churn every diff and conflict on every merge. Releases carry the
-built zip instead, produced by [`.github/workflows/release.yml`](.github/workflows/release.yml).
-
-### Cutting a release
+For development, `npm run dev` runs Vite with hot reload against the same output — edit
+a file and the extension picks it up without a manual rebuild.
 
 ```bash
-npm version patch      # or minor / major — updates package.json
-git push && git push --tags
+npm run dev         # Vite with hot reload
+npm test            # unit tests
+npm run typecheck   # tsc, no emit
+npm run build       # typecheck + production build into dist/
 ```
 
-The tag triggers a build that runs the tests, packages `dist/`, and publishes a release
-with the zip attached. The workflow refuses to run if the tag disagrees with the version
-in `package.json`, since the manifest takes its version from there and a mismatch would
-ship an extension labelled wrong.
+`dist/` isn't committed — it's generated files with content-hashed names that would
+churn on every diff. Each release ships the built zip instead.
 
-## How it gets the data
+## Privacy
 
-The five platforms cooperate to very different degrees. Each is one self-contained
-adapter behind a shared interface, so a change to one cannot affect the others.
+Nothing leaves your machine.
 
-| Platform | Source | Notes |
-|---|---|---|
-| Codeforces | Official REST API | Documented and stable. Unknown handles return **HTTP 400** carrying a `status: "FAILED"` envelope. Rate limited to ~1 req/sec, so its calls are sequenced. |
-| LeetCode | Public GraphQL, no auth | Unknown users return **HTTP 200** with `matchedUser: null`. `submissionCalendar` is a JSON *string* needing a second parse; contest rating is a float and is rounded. |
-| HackerRank | Undocumented JSON | `/rest/hackers/{h}/badges` + `/rest/contests/master/hackers/{h}/profile`. 404s for unknown users. No stability guarantee. |
-| GeeksforGeeks | `authapi.geeksforgeeks.org` JSON | Profile pages are Next.js RSC streams with no embedded JSON, but the auth API returns the same numbers cleanly. Unknown handles return 400 with an **empty body**. |
-| CodeChef | HTML scrape | The only scraper. Unknown users get the **generic landing page with HTTP 200**, so the page is classified by its profile shell and `<title>` — see below. |
+- No account, no sign-in, no server.
+- No analytics, no telemetry, no tracking.
+- Only public profile data is read, and no credentials are ever stored or sent.
+- Everything lives in `chrome.storage.local`, and you can export or delete it from
+  Settings at any time.
 
-CodeChef needs one more note, because getting it wrong cost real debugging time. Page
-existence is decided by the profile shell (`.user-profile-container`) and the
-`"CodeChef User Profile"` title, **not** by whether a rating was found. An account that
-has never entered a rated contest has no rating block at all, and inferring existence
-from the rating reported those users as nonexistent — pointing the blame at a username
-that was perfectly correct. Anything unrecognisable now reports itself as unrecognisable,
-quoting the page title and byte count, rather than guessing at "no such user".
+Requests go out roughly once an hour by default (15 minutes minimum), staggered rather
+than fired all at once.
 
-CodeChef also renders **two** rating blocks — the classic rating in `#rating-block-all`
-and a separate DSA rating in `#rating-block-dsa-monday`, whose numbers are unrelated (a
-3355-rated account reads `NA` with a highest of 0 in the second). Every rating query is
-scoped to the first. An unscoped `.rating-number` lookup finds the right one only
-because it happens to be emitted first.
+## Contributing
 
-### Which problems, not just how many
+Issues and pull requests are welcome. If a platform changes its page or API and a number
+stops updating, that's worth reporting — the adapters are tested against real captured
+responses, so a report usually turns into a small, well-scoped fix.
 
-Two platforms will say what you actually solved, and both come free of extra requests:
-
-| Platform | Source | Coverage |
-|---|---|---|
-| Codeforces | `user.status`, **already fetched** for the solve count | Complete history. The response carries problem name, rating and tags, all of which the adapter used to parse away. |
-| LeetCode | `recentAcSubmissionList`, one more field on the existing GraphQL query | **The 20 most recent, and only 20** — asking for 50, 100 or 500 all return 20. |
-
-That cap is why the stored list is **merged, never replaced**: a replace would shrink
-LeetCode to 20 entries on every refresh and discard everything accumulated since
-install. So LeetCode backfills 20 at install and grows forward from there, while
-Codeforces is complete from the first refresh. The UI names the platforms that
-contribute nothing rather than letting a short list look like a bug.
-
-CodeChef, GeeksforGeeks and HackerRank publish no per-problem feed. CodeChef lists
-problem codes on its profile page, but that is the fragile scraper tier and was left
-alone deliberately.
-
-Contests come from two extra endpoints, kept outside the `PlatformAdapter` contract
-because they need no handle and are the same for every user: Codeforces'
-documented `contest.list` (filtered on `phase === "BEFORE"` — a running contest still
-has a start time in the past) and LeetCode's undocumented `topTwoContests`. They are
-refetched at most every six hours, riding the existing alarm rather than adding one.
-
-### Things deliberately not reported
-
-- **HackerRank has no solved count.** Its MultiDomain "Problem Solving" badge overlaps
-  the per-language badges, so summing their `solved` fields would double-count and
-  corrupt the dashboard's cross-platform total. HackerRank publishes no unambiguous
-  total, and reporting none beats reporting a wrong one.
-- **GeeksforGeeks `score` is not mapped to `rating`.** It is a points total, not an Elo
-  rating; charting it beside Codeforces would misrepresent it.
-- **"Solved today" is measured against yesterday's history point specifically**, not
-  against the most recent earlier one. After a three-day gap the latter would report
-  three days of work as today's. With no point for yesterday the number is `—`, not a
-  guess — which is also why the reminder stays silent on an unmeasurable day.
-- **Streaks are attributed, never merged.** Only LeetCode and GeeksforGeeks publish
-  one, so it renders as "12 days · LeetCode". A bare "12-day streak" would read as a
-  cross-platform figure the tracker has no way to compute.
-- **A hand-kept counter never counts as a fetch.** Its snapshot is marked `manual`, so
-  clicking `+1` cannot convince the popup that five hours-old platforms are fresh, and
-  the dashboard's "Fetched 2m ago" never describes something that was typed rather than
-  fetched.
-- **A missing day means different things for a counter and a fetch.** For a fetched
-  platform, no history point for yesterday means "we did not look", which is unknowable
-  and stays flagged. For a counter it means the count did not move — so it falls back
-  to the last value on record, never to `0`, which would report a standing count of 191
-  as 191 problems solved today.
-
-## Architecture
-
-```
-src/
-  background/      service worker: alarms, refresh orchestration, badge, reminder
-  platforms/       one adapter per site + the shared PlatformAdapter contract
-  shared/          derived numbers used by both the UI and the service worker
-  offscreen/       DOM parsing host (service workers have no DOMParser)
-  storage/         versioned schema, migrations, typed repo
-  ui/              popup, dashboard shell + views + settings, shared components, tokens
-  ui/viz/          hand-rolled SVG charts
-  content/         username auto-detect (suggestions only)
-scripts/
-  make-icons.mjs   draws the icon set (no raster dependency)
-```
-
-`shared/` exists so the popup's "solved today" and the toolbar badge's number come from
-the same function and cannot disagree.
-
-The popup renders `PlatformRow` (collapsible), the dashboard renders `PlatformCard`
-(grid). Both compose the same leaves — `StatBlock`, `Delta`, `Sparkline`,
-`DifficultyBar`, `PlatformError` — so a change lands on both at once.
-
-Adding a sixth built-in platform is a new file in `platforms/` plus one line in
-`platforms/registry.ts`. User-defined platforms take a different route: a descriptor in
-`settings.custom` becomes an adapter through `platforms/custom/adapter.ts`, so
-everything downstream — the popup, the badge, the reminder, the storage layer — cannot
-tell it from a built-in.
-
-The dashboard and the options page are **one component with two entry points**.
-`options_page` has to name a real declared page and cannot carry a URL hash, so
-`ui/options/main.tsx` renders the dashboard shell with `initialView="settings"` instead
-of redirecting. `chrome.runtime.openOptionsPage()` therefore lands somewhere with the
-sidebar and every other view one click away.
-
-Two MV3 constraints shape the design:
-
-1. **Service workers have no `DOMParser`**, so CodeChef's HTML round-trips through an
-   offscreen document.
-2. **Service workers are torn down after ~30s idle**, so scheduling uses
-   `chrome.alarms` (never `setInterval`) and nothing is cached in module scope.
-
-### Failure handling
-
-Adapters fail independently — `Promise.allSettled`, per-adapter timeout, each result
-written on its own. A broken platform shows an error on its own card while keeping its
-last-known values; it never blanks the popup.
-
-A parser that no longer recognises a response throws `ScrapeError`, surfaced as
-"format changed — parser needs updating". **A silently wrong number reads as lost
-progress and is worse than a visible error**, so no adapter falls back to zero.
-
-The three error kinds (`handle-not-found`, `scrape-failed`, `fetch-failed`) are stored
-on the snapshot, not flattened to a string, so each gets the remedy that actually fixes
-it: a link to settings for a bad username, a per-platform Retry for a network fault,
-and no false hope for a broken parser.
-
-## Charts
-
-The chart palette is the validated data-viz palette, **not** the platform brand colors:
-run through the palette validator, CodeChef's brown fails the chroma floor (0.037 — it
-reads gray) and LeetCode's orange falls outside the lightness band. Brand colors stay
-on the card accent stripes, which are decoration rather than data encoding.
-
-All ratings share **one** y-axis. Series colors are bound to the platform, never to
-position, so hiding one never repaints the others.
-
-**Easy / Medium / Hard is an ordinal ramp, not three hues.** Swapping the order changes
-the meaning, so it takes one hue with monotone lightness — the reader sees the order in
-the colour. The previous green/amber/red was a rainbow over ordered data and doubled as
-the reserved status palette. The steps are validated with `--ordinal` against this
-project's own card surfaces, which is why they are not the documented ramp's defaults:
-the light end had to move a step darker to clear the 2:1 floor on `#f7f8fa`.
-
-```bash
-npm run preview:charts   # writes preview/charts.html
-```
-
-The preview stamps both themes side by side and includes the awkward cases — a flat
-sparkline, one with too little history to plot, a zero-count difficulty bar, and a goal
-ring overshot past 100%. It earns its keep: in v1 it caught a multi-child SVG `<title>`
-that browsers render as literal markup, and this round it caught raw floats reaching
-the sparkline caption.
-
-## Development
-
-```bash
-npm test           # 154 tests
-npm run typecheck
-npm run build
-node scripts/make-icons.mjs   # only when the icon design changes
-```
-
-Adapter tests run against **real captured API responses** in
-`src/platforms/__fixtures__/`. Those fixtures are the canary: when a platform changes
-shape, re-capture the fixture and the diff shows exactly what moved. The Codeforces
-contest fixture is trimmed to eight entries spanning both phases — the live response
-carries ~2,100 contests and shape is what the test needs.
-
-Fixtures use public reference accounts (`neal_wu`, `tourist`), never the maintainer's
-own profile — a fixture is committed to a public repo, and a personal solve history has
-no business being in one. Where a real capture cannot exercise a path (the reference
-LeetCode account is inactive, so its recent-submissions list is empty), the test builds
-a synthetic payload in the shape verified live.
-
-Storage is at **schema v3**. Every migration step so far is additive, so one merge
-covers v0 through v3; `migrate()` becomes a version-branched chain only when some
-future version has to reshape data rather than add to it.
-
-## Politeness and terms
-
-Default refresh is hourly, with a 15-minute floor, and platforms are staggered rather
-than fetched all at once. Contests are refetched at most every six hours. Every endpoint
-reads *public* profile data with no authentication and stores no credentials.
-Automated-access rules vary by site — worth re-reading each platform's terms before any
-Chrome Web Store listing.
-
-`notifications` is requested for the daily reminder only, and nothing calls it while the
-reminder is off.
-
-## MV3 details worth knowing before editing
-
-- **No inline `<head>` script**, so the theme cannot be resolved from `chrome.storage`
-  before first paint. `ui/theme.ts` keeps a synchronous `localStorage` mirror of the
-  preference and stamps `data-theme` at import time; `chrome.storage` stays canonical.
-- **Alarms replay after downtime.** Chrome fires alarms it missed while the browser was
-  closed, so the reminder re-checks the wall clock at fire time — otherwise a laptop
-  opened at 3am gets an evening nudge.
-- **The badge only recomputes on refresh**, so after midnight it carries yesterday's
-  number for at most one interval. Correcting that would mean an alarm firing every
-  midnight for a purely cosmetic gain.
+Design decisions, platform quirks and the reasoning behind them live in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
