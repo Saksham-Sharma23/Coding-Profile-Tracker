@@ -168,7 +168,12 @@
   font-size: var(--fs-xs);
 }
 
-.contest {
+/*
+ * Scoped to .view rather than bare, because ContestStrip.css and viz.css define these
+ * for the popup too. Equal specificity would leave the winner up to bundle order; the
+ * extra class makes the dashboard's larger treatment deterministic.
+ */
+.view .contest {
   padding: var(--s-3) var(--s-5);
   font-size: var(--fs-xs);
 }
@@ -179,8 +184,8 @@
   gap: var(--s-4);
 }
 
-.grid .card,
-.viz {
+.view .card,
+.view .viz {
   box-shadow: var(--shadow-1);
 }
 
