@@ -7,3 +7,6 @@ preview/
 # Packaged builds. The release workflow produces these and attaches them to a
 # GitHub Release; they should never be committed.
 *.zip
+
+# Local AI-assistant config. Machine-specific and nobody else's business.
+.claude/
