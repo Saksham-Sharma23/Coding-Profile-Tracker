@@ -5,6 +5,7 @@
  * never disagree — the "measure against yesterday, not against the last recorded day"
  * rule lives in exactly one place.
  */
+import { customAdapters } from '@/platforms/custom/adapter';
 import { orderedAdapters } from '@/platforms/registry';
 import { visiblePlatforms, solvedToday, type TodayProgress } from '@/shared/progress';
 import { isoDay, readState } from '@/storage/repo';
@@ -34,7 +35,10 @@ export function badgeText(progress: TodayProgress): string {
 export async function updateBadge(): Promise<void> {
   try {
     const state = await readState();
-    const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order, []));
+    const tracked = visiblePlatforms(
+      state,
+      orderedAdapters(state.settings.order, customAdapters(state.settings.custom)),
+    );
     const text = badgeText(solvedToday(state, tracked, isoDay(Date.now())));
 
     await chrome.action.setBadgeText({ text });

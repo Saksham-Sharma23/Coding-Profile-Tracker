@@ -1,3 +1,4 @@
+import { clampCount, manualStats } from '@/platforms/custom/adapter';
 import type { PlatformAdapter, PlatformId, PlatformStats } from '@/platforms/types';
 import {
   clampRefresh,
@@ -166,24 +167,64 @@ export async function removeCustomPlatform(id: PlatformId): Promise<void> {
 }
 
 export async function recordSuccess(stats: PlatformStats): Promise<void> {
-  await updateState((state) => {
-    /*
-     * Second line of defence behind saveSettings. That is the chokepoint for the normal
-     * path, but a handle can also arrive through an imported file, so the identity of
-     * the data is re-checked against what actually came back before anything is merged
-     * into it. Only fires when a previous fetch recorded a different account.
-     */
-    const owner = state.snapshots[stats.platform]?.stats?.handle;
-    if (owner && !sameHandle(owner, stats.handle)) {
-      clearPlatformData(state, stats.platform);
-    }
+  await updateState((state) => applyStats(state, stats));
+}
 
-    // The problem list is cumulative, so it must not ride along inside the snapshot —
-    // each fetch carries only a slice, and storing that would keep overwriting it.
-    const { solvedProblems, ...rest } = stats;
-    state.snapshots[stats.platform] = { status: 'ok', stats: rest, fetchedAt: stats.fetchedAt };
-    appendHistory(state, rest);
-    if (solvedProblems?.length) mergeSolved(state, stats.platform, solvedProblems);
+/**
+ * Files one platform's stats into the state. Synchronous on purpose: callers wrap it in
+ * a single `updateState` so a read-modify-write cycle covers the whole operation, and a
+ * hand-kept `+1` can resolve against freshly-read storage inside the same cycle.
+ */
+function applyStats(
+  state: TrackerState,
+  stats: PlatformStats,
+  options: { manual?: boolean } = {},
+): void {
+  /*
+   * Second line of defence behind saveSettings. That is the chokepoint for the normal
+   * path, but a handle can also arrive through an imported file, so the identity of
+   * the data is re-checked against what actually came back before anything is merged
+   * into it. Only fires when a previous fetch recorded a different account.
+   */
+  const owner = state.snapshots[stats.platform]?.stats?.handle;
+  if (owner && !sameHandle(owner, stats.handle)) {
+    clearPlatformData(state, stats.platform);
+  }
+
+  // The problem list is cumulative, so it must not ride along inside the snapshot —
+  // each fetch carries only a slice, and storing that would keep overwriting it.
+  const { solvedProblems, ...rest } = stats;
+  state.snapshots[stats.platform] = {
+    status: 'ok',
+    stats: rest,
+    fetchedAt: stats.fetchedAt,
+    ...(options.manual && { manual: true }),
+  };
+  appendHistory(state, rest);
+  if (solvedProblems?.length) mergeSolved(state, stats.platform, solvedProblems);
+}
+
+/**
+ * Writes a hand-kept count, either absolute or as a change against the stored value.
+ *
+ * `next` may be a function precisely because `updateState` is read-modify-write: a `+1`
+ * derived from whatever React last rendered would lose a concurrent increment made from
+ * the other open surface, since writes are whole-blob last-wins. Passing a resolver lets
+ * it run against storage that was read inside this same cycle. The UI disables its
+ * buttons while the write is in flight as well — this is the part that has to be correct
+ * even when it does not.
+ *
+ * Routing through `applyStats` means `appendHistory` overwrites the same UTC day, so
+ * five `+1`s today produce one history point at `+5` rather than five points.
+ */
+export async function recordManual(
+  def: CustomPlatform,
+  next: number | ((current: number) => number),
+): Promise<void> {
+  await updateState((state) => {
+    const current = state.snapshots[def.id]?.stats?.solved?.total ?? 0;
+    const total = clampCount(typeof next === 'function' ? next(current) : next);
+    applyStats(state, manualStats(def, total, Date.now()), { manual: true });
   });
 }
 

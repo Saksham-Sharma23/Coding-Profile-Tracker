@@ -214,3 +214,68 @@
   align-items: center;
   gap: var(--s-1);
 }
+
+/* ---- hand-kept counter ------------------------------------------------- */
+
+/*
+ * Replaces the stats block for manual platforms, so it has to carry the same visual
+ * weight a headline number would. The input is the display: there is no second copy
+ * of the count anywhere on the card.
+ */
+.counter {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+}
+
+.counter-step {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+}
+
+.counter-step:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.counter-field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.counter-input {
+  width: 5ch;
+  padding: 2px 4px;
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.1;
+  /* Field-sizing keeps a 4-digit count from being clipped without making a 2-digit
+     one look like an empty box. Ignored where unsupported; the 5ch width holds. */
+  field-sizing: content;
+}
+
+.counter-input:hover:not(:disabled) {
+  border-color: var(--border);
+}
+
+/* The spinners duplicate the +/- buttons and steal the width the digits need. */
+.counter-input::-webkit-outer-spin-button,
+.counter-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.counter-input[type='number'] {
+  appearance: textfield;
+}
+
+.counter-target {
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}

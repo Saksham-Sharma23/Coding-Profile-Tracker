@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { isStale } from '@/background/scheduler';
+import { customAdapters } from '@/platforms/custom/adapter';
 import { orderedAdapters } from '@/platforms/registry';
 import type { PlatformId } from '@/platforms/types';
 import { isoDay } from '@/storage/repo';
@@ -12,12 +13,15 @@ import { SummaryStrip } from './SummaryStrip';
 import './popup.css';
 
 export function Popup() {
-  const { state, loading, refreshing, refresh, updateSettings } = useTracker();
+  const { state, loading, refreshing, refresh, updateSettings, counterFor } = useTracker();
   const today = isoDay(Date.now());
 
   useThemeMirror(state.settings.theme, loading);
 
-  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order, []));
+  const tracked = visiblePlatforms(
+    state,
+    orderedAdapters(state.settings.order, customAdapters(state.settings.custom)),
+  );
 
   // Refresh on open when the data has aged out, so the popup reflects reality without
   // the user pressing anything. Cached values render immediately meanwhile.
@@ -84,6 +88,7 @@ export function Popup() {
                 key={adapter.id}
                 adapter={adapter}
                 handle={state.settings.handles[adapter.id]}
+                counter={counterFor(adapter)}
                 snapshot={state.snapshots[adapter.id]}
                 history={state.history[adapter.id]}
                 solvedProblems={state.solved[adapter.id]}

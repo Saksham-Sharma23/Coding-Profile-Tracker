@@ -6,6 +6,7 @@
  * off at 3am on a laptop opened after a weekend away — so the hour is checked again at
  * fire time rather than trusted from the schedule.
  */
+import { customAdapters } from '@/platforms/custom/adapter';
 import { orderedAdapters } from '@/platforms/registry';
 import { solvedToday, visiblePlatforms } from '@/shared/progress';
 import { isoDay, readState } from '@/storage/repo';
@@ -60,7 +61,10 @@ export async function maybeNotify(now = Date.now()): Promise<boolean> {
   const { reminder, dailyGoal } = state.settings;
   if (!reminder.enabled || !withinReminderWindow(reminder.hour, now)) return false;
 
-  const tracked = visiblePlatforms(state, orderedAdapters(state.settings.order, []));
+  const tracked = visiblePlatforms(
+    state,
+    orderedAdapters(state.settings.order, customAdapters(state.settings.custom)),
+  );
   if (!tracked.length) return false;
 
   const { solved } = solvedToday(state, tracked, isoDay(now));

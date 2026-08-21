@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { readState, saveSettings } from '@/storage/repo';
+import { readState, recordManual, saveSettings } from '@/storage/repo';
 import { defaultState, type Settings, type TrackerState } from '@/storage/schema';
 import { sendMessage } from '@/background/messages';
-import type { PlatformId } from '@/platforms/types';
+import type { PlatformAdapter, PlatformId } from '@/platforms/types';
+import type { Counter } from './components/ManualCounter';
 import { writeThemeMirror } from './theme';
 
 /**
@@ -58,7 +59,27 @@ export function useTracker() {
     await saveSettings(partial);
   }, []);
 
-  return { state, loading, refreshing, refresh, updateSettings };
+  /**
+   * The editing hooks for a hand-kept counter, or undefined for anything fetched.
+   *
+   * Lives here so the popup and the dashboard each stay a one-liner and the descriptor
+   * lookup has exactly one definition — a second copy would be the thing that gets
+   * forgotten when a third surface appears.
+   */
+  const counterFor = useCallback(
+    (adapter: PlatformAdapter): Counter | undefined => {
+      if (adapter.capabilities.fetchable) return undefined;
+      const def = state.settings.custom.find((each) => each.id === adapter.id);
+      if (!def) return undefined;
+      return {
+        ...(def.target !== undefined && { target: def.target }),
+        onChange: (next) => recordManual(def, next),
+      };
+    },
+    [state.settings.custom],
+  );
+
+  return { state, loading, refreshing, refresh, updateSettings, counterFor };
 }
 
 /**

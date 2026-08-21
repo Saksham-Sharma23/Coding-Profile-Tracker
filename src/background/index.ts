@@ -1,5 +1,6 @@
+import { customAdapters } from '@/platforms/custom/adapter';
 import { getAdapter } from '@/platforms/registry';
-import { getSettings, updateState } from '@/storage/repo';
+import { getSettings, readState, updateState } from '@/storage/repo';
 import { updateBadge } from './badge';
 import type { Message, Response } from './messages';
 import { refreshAll } from './refresh';
@@ -63,7 +64,8 @@ async function handle(message: Message): Promise<Response> {
     }
 
     case 'validate-handle': {
-      const adapter = getAdapter(message.platform, []);
+      const { settings } = await readState();
+      const adapter = getAdapter(message.platform, customAdapters(settings.custom));
       if (!adapter) return { type: 'validate-result', ok: false, error: 'Not supported yet' };
 
       const controller = new AbortController();

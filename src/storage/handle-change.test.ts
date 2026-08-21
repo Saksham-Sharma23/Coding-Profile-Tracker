@@ -9,20 +9,8 @@ import {
   saveSettings,
   updateState,
 } from './repo';
+import { mockChromeStorage } from '@/test/chrome-storage';
 import { defaultState, type TrackerState } from './schema';
-
-/** Minimal in-memory chrome.storage.local, which is all repo.ts touches. */
-function mockChromeStorage() {
-  const bag: Record<string, unknown> = {};
-  (globalThis as unknown as { chrome: unknown }).chrome = {
-    storage: {
-      local: {
-        get: async (key: string) => ({ [key]: bag[key] }),
-        set: async (patch: Record<string, unknown>) => void Object.assign(bag, patch),
-      },
-    },
-  };
-}
 
 const problem = (key: string, solvedAt: number): SolvedProblem => ({
   key,

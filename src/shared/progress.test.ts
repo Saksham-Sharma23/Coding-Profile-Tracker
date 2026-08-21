@@ -182,3 +182,113 @@ describe('isExpanded', () => {
     expect(isExpanded(['codeforces'], 'leetcode')).toBe(false);
   });
 });
+
+/* ---- capability-driven behaviour (hand-kept counters) -------------------- */
+
+/** A user-defined manual counter: no handle, never fetched, gap means "unchanged". */
+function manual(id: PlatformId, countsTowardTotal = false): PlatformAdapter {
+  return {
+    id,
+    displayName: id,
+    accent: '#7c5cff',
+    capabilities: {
+      ...FETCHED_PLATFORM,
+      countsTowardTotal,
+      requiresHandle: false,
+      fetchable: false,
+      baselineFromLastKnown: true,
+    },
+    fetchStats: () => Promise.reject(new Error('not used')),
+  };
+}
+
+describe('visiblePlatforms — platforms that need no handle', () => {
+  it('shows a hand-kept counter, which by definition has no username', () => {
+    // The blocker: an unconditional handle check hid every custom counter from the
+    // popup, the dashboard and the badge at once.
+    const state = stateWith({ handles: { leetcode: 'a' } });
+    const ids = visiblePlatforms(state, [adapter('leetcode'), manual('custom:striver-7f3a')]).map(
+      (a) => a.id,
+    );
+    expect(ids).toEqual(['leetcode', 'custom:striver-7f3a']);
+  });
+
+  it('still honours the on/off switch for one', () => {
+    const state = stateWith({ enabled: { 'custom:striver-7f3a': false } });
+    expect(visiblePlatforms(state, [manual('custom:striver-7f3a')])).toEqual([]);
+  });
+});
+
+describe('totalSolved — countsTowardTotal', () => {
+  it('leaves out a platform that declares it does not count', () => {
+    // Striver's sheet is a curated list of LeetCode problems; counting both counts the
+    // same work twice, and only the user knows which of their sheets are like that.
+    const state = stateWith({ solved: { leetcode: 300, 'custom:striver-7f3a': 191 } });
+    const all = [adapter('leetcode'), manual('custom:striver-7f3a')];
+
+    expect(totalSolved(state, all)).toBe(300);
+  });
+
+  it('includes one that declares it does', () => {
+    const state = stateWith({ solved: { leetcode: 300, 'custom:atcoder-7f3a': 57 } });
+    expect(totalSolved(state, [adapter('leetcode'), manual('custom:atcoder-7f3a', true)])).toBe(357);
+  });
+});
+
+describe('solvedToday — hand-kept counters', () => {
+  const striver = manual('custom:striver-7f3a', true);
+
+  it('falls back to the last known day when yesterday is missing', () => {
+    // A counter set to 191 last week and untouched since has not moved. For a fetched
+    // platform the same gap means "we did not look" and stays unknown.
+    const state = stateWith({
+      solved: { 'custom:striver-7f3a': 196 },
+      history: { 'custom:striver-7f3a': [{ d: '2026-07-28', solved: 191 }] },
+    });
+    expect(solvedToday(state, [striver], TODAY)).toEqual({ solved: 5, partial: false });
+  });
+
+  it('never falls back to zero, which would report the whole standing count', () => {
+    // The tempting shortcut. It would claim 191 problems solved today.
+    const state = stateWith({
+      solved: { 'custom:striver-7f3a': 191 },
+      history: { 'custom:striver-7f3a': [{ d: '2026-07-28', solved: 191 }] },
+    });
+    expect(solvedToday(state, [striver], TODAY).solved).toBe(0);
+  });
+
+  it('is still partial on the very first day, with nothing to measure against', () => {
+    const state = stateWith({
+      solved: { 'custom:striver-7f3a': 191 },
+      history: { 'custom:striver-7f3a': [{ d: TODAY, solved: 191 }] },
+    });
+    expect(solvedToday(state, [striver], TODAY)).toEqual({ partial: true });
+  });
+
+  it('prefers a real yesterday point over the fallback', () => {
+    const state = stateWith({
+      solved: { 'custom:striver-7f3a': 50 },
+      history: {
+        'custom:striver-7f3a': [
+          { d: '2026-07-01', solved: 10 },
+          { d: '2026-08-03', solved: 45 },
+        ],
+      },
+    });
+    expect(solvedToday(state, [striver], TODAY).solved).toBe(5);
+  });
+
+  it('cannot be made partial by a platform that does not count', () => {
+    /*
+     * Filtered before the loop, not inside it. Otherwise an excluded platform with no
+     * baseline still sets partial: true, and the UI apologises for omitting a number
+     * the user explicitly asked it to omit.
+     */
+    const state = stateWith({
+      solved: { leetcode: 44, 'custom:striver-7f3a': 191 },
+      history: { leetcode: [{ d: '2026-08-03', solved: 40 }] },
+    });
+    const result = solvedToday(state, [adapter('leetcode'), manual('custom:striver-7f3a')], TODAY);
+    expect(result).toEqual({ solved: 4, partial: false });
+  });
+});

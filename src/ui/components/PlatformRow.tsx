@@ -8,6 +8,7 @@ import { timeAgo } from '../useTracker';
 import { DifficultyBar } from '../viz/DifficultyBar';
 import { Sparkline } from '../viz/Sparkline';
 import { Delta } from './Delta';
+import { ManualCounter, type Counter } from './ManualCounter';
 import { PlatformError } from './PlatformError';
 import { RecentProblems } from './RecentProblems';
 import { StatBlock } from './StatBlock';
@@ -17,6 +18,8 @@ interface Props {
   adapter: PlatformAdapter;
   /** Absent for hand-kept counters, which need no username. */
   handle?: string;
+  /** Present only for hand-kept counters, which are edited in place rather than fetched. */
+  counter?: Counter;
   snapshot: Snapshot | undefined;
   history: HistoryPoint[] | undefined;
   solvedProblems: SolvedProblem[] | undefined;
@@ -38,6 +41,7 @@ interface Props {
 export function PlatformRow({
   adapter,
   handle,
+  counter,
   snapshot,
   history,
   solvedProblems,
@@ -58,7 +62,9 @@ export function PlatformRow({
   const hasBreakdown =
     breakdown !== undefined &&
     (breakdown.easy ?? breakdown.medium ?? breakdown.hard) !== undefined;
-  const profileHref = handle && adapter.profileUrl ? adapter.profileUrl(handle) : undefined;
+  // Not gated on the handle: a hand-kept counter has none, yet may still declare a page
+  // worth linking to — a sheet's own URL, say.
+  const profileHref = adapter.profileUrl?.(handle ?? '');
 
   return (
     <article className="prow surface" style={{ borderLeftColor: adapter.accent }}>
@@ -106,7 +112,21 @@ export function PlatformRow({
           </span>
         </div>
 
-        {stats ? (
+        {/*
+          A hand-kept counter is edited here rather than displayed, so the control
+          replaces the headline stats instead of joining them. Deliberately outside the
+          `stats` check: a counter created a moment ago has no snapshot yet, and must
+          still offer a usable [−] 0 [+] rather than "No data yet".
+        */}
+        {counter ? (
+          <ManualCounter
+            name={adapter.displayName}
+            total={stats?.solved?.total ?? 0}
+            target={counter.target}
+            onChange={counter.onChange}
+            delta={primary && stats && <Delta stat={primary} stats={stats} prior={prior} />}
+          />
+        ) : stats ? (
           <div className="stats">
             {stats.headline.map((stat) => (
               <StatBlock

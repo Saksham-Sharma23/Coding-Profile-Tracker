@@ -211,3 +211,50 @@
     grid-column: 2 / -1;
   }
 }
+
+/* ---- custom platforms -------------------------------------------------- */
+
+.options .platform-actions {
+  gap: var(--s-2);
+  justify-self: end;
+}
+
+/* Reads as destructive on hover only, so a row of trash icons is not a wall of red. */
+.options .danger-ghost {
+  color: var(--muted);
+}
+
+.options .danger-ghost:hover:not(:disabled) {
+  color: var(--error);
+  background: var(--surface-2);
+}
+
+.options .options-note {
+  margin: calc(-1 * var(--s-3)) 0 0;
+  font-size: var(--fs-xs);
+}
+
+.options .custom-add {
+  align-items: center;
+}
+
+.options .custom-add input[type='text'],
+.options .custom-add #cp-name {
+  width: 240px;
+}
+
+.options .custom-target {
+  width: 110px;
+}
+
+/* The checkbox and its explanation each take the full row: the label is a sentence,
+   not a chip, and wrapping it beside the inputs makes both hard to read. */
+.options .custom-counts,
+.options .custom-add .hint,
+.options .custom-where {
+  flex-basis: 100%;
+}
+
+.options .custom-where {
+  margin: calc(-1 * var(--s-2)) 0 0;
+}

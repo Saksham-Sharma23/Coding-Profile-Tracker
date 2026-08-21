@@ -10,8 +10,19 @@
  * trade than a rollover at the wrong hour.
  */
 import type { PlatformAdapter, PlatformId } from '@/platforms/types';
-import { pointForDay, previousDay } from '@/storage/repo';
+import { pointForDay, previousDay, previousPoint } from '@/storage/repo';
 import type { HistoryPoint, TrackerState } from '@/storage/schema';
+
+/**
+ * Platforms whose solve count rolls into the cross-platform figures.
+ *
+ * Excluded by declaration rather than by name: HackerRank's badges overlap, so any
+ * total derived from them double-counts, and a user-defined sheet like Striver's is a
+ * curated list *of* LeetCode problems — counting both counts the same work twice.
+ */
+function counted(adapters: PlatformAdapter[]): PlatformAdapter[] {
+  return adapters.filter((adapter) => adapter.capabilities.countsTowardTotal);
+}
 
 export interface Trend {
   /** Structurally the viz layer's Point, declared here so shared/ never imports ui/. */
@@ -66,11 +77,25 @@ export function solvedToday(
   let solved: number | undefined;
   let partial = false;
 
-  for (const adapter of adapters) {
+  // Filtered before the loop, not inside it: an excluded platform must not be able to
+  // set `partial` either, or the UI apologises for leaving out a number it never wanted.
+  for (const adapter of counted(adapters)) {
     const current = state.snapshots[adapter.id]?.stats?.solved?.total;
     if (current === undefined) continue;
 
-    const baseline = pointForDay(state.history[adapter.id], yesterday)?.solved;
+    const series = state.history[adapter.id];
+    /*
+     * A hand-kept counter with no point for yesterday has not moved — that is knowable,
+     * so it falls back to the last value on record. A fetched platform's gap means "we
+     * did not look", which is not knowable and stays flagged.
+     *
+     * The fallback is the previous *point*, never 0: a counter set to 191 last week
+     * would otherwise report all 191 as solved today.
+     */
+    const baseline =
+      pointForDay(series, yesterday)?.solved ??
+      (adapter.capabilities.baselineFromLastKnown ? previousPoint(series, today)?.solved : undefined);
+
     if (baseline === undefined) {
       partial = true;
       continue;
@@ -108,27 +133,35 @@ export function bestStreak(state: TrackerState, adapters: PlatformAdapter[]): St
 }
 
 /**
- * Problems solved across every tracked platform.
+ * Problems solved across the tracked platforms that declare they count.
  *
- * HackerRank contributes nothing by design — its badges overlap, so any total derived
- * from them double-counts. See the README.
+ * See `counted()` for who is left out and why. HackerRank has always been excluded;
+ * it reports no solve count at all, so declaring it changed no number.
  */
 export function totalSolved(state: TrackerState, adapters: PlatformAdapter[]): number {
-  return adapters.reduce(
+  return counted(adapters).reduce(
     (sum, adapter) => sum + (state.snapshots[adapter.id]?.stats?.solved?.total ?? 0),
     0,
   );
 }
 
-/** Platforms with a handle set and not explicitly switched off, in display order. */
+/**
+ * Platforms to show, in display order: not switched off, and identified well enough to
+ * have something to show.
+ *
+ * The handle check is conditional on the platform actually needing one. A hand-kept
+ * counter has no username by definition, so an unconditional check would hide every
+ * user-defined counter from the popup, the dashboard and the badge alike.
+ */
 export function visiblePlatforms(
   state: TrackerState,
   ordered: PlatformAdapter[],
 ): PlatformAdapter[] {
-  return ordered.filter(
-    (adapter) =>
-      state.settings.handles[adapter.id]?.trim() && state.settings.enabled[adapter.id] !== false,
-  );
+  return ordered.filter((adapter) => {
+    if (state.settings.enabled[adapter.id] === false) return false;
+    if (!adapter.capabilities.requiresHandle) return true;
+    return Boolean(state.settings.handles[adapter.id]?.trim());
+  });
 }
 
 /**

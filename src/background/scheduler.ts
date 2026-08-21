@@ -22,6 +22,10 @@ export async function scheduleRefresh(): Promise<void> {
 export async function isStale(): Promise<boolean> {
   const state = await readState();
   const timestamps = Object.values(state.snapshots)
+    // A hand-kept counter stamps `fetchedAt` when the user clicks +1, which is not
+    // evidence that anything was fetched. Counting it would let one click suppress the
+    // popup's auto-refresh of every real platform for a whole interval.
+    .filter((snap) => !snap?.manual)
     .map((snap) => snap?.fetchedAt ?? 0)
     .filter((ts) => ts > 0);
 

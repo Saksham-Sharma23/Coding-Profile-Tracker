@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { customAdapters } from '@/platforms/custom/adapter';
 import { orderedAdapters } from '@/platforms/registry';
 import { formatCountdown, nextContest } from '@/shared/countdown';
 import { bestStreak, solvedToday, totalSolved, visiblePlatforms } from '@/shared/progress';
@@ -27,13 +28,15 @@ import './dashboard.css';
 const CHART_SLOTS = ['--viz-1', '--viz-2', '--viz-3'];
 
 export function Dashboard() {
-  const { state, loading, refreshing, refresh } = useTracker();
+  const { state, loading, refreshing, refresh, counterFor } = useTracker();
   const today = isoDay(Date.now());
 
   useThemeMirror(state.settings.theme, loading);
 
-  // Phase 0: no user-defined platforms exist yet, so the custom list is empty.
-  const ordered = orderedAdapters(state.settings.order, []);
+  const ordered = orderedAdapters(
+    state.settings.order,
+    customAdapters(state.settings.custom),
+  );
   const tracked = visiblePlatforms(state, ordered);
   const trackedIds = new Set(tracked.map((adapter) => adapter.id));
 
@@ -146,6 +149,7 @@ export function Dashboard() {
                 key={adapter.id}
                 adapter={adapter}
                 handle={state.settings.handles[adapter.id]}
+                counter={counterFor(adapter)}
                 snapshot={state.snapshots[adapter.id]}
                 history={state.history[adapter.id]}
                 today={today}

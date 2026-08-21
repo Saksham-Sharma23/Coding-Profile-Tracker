@@ -8,7 +8,7 @@ import { isCustomId, sanitizeCustom, type CustomPlatform } from './custom';
 
 export type { CustomPlatform, SolvedProblem };
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Why a fetch failed, kept so the UI can offer the right remedy per case. */
 export type FailureKind = 'handle-not-found' | 'scrape-failed' | 'fetch-failed';
@@ -23,6 +23,13 @@ export interface Snapshot {
    */
   kind?: FailureKind;
   fetchedAt: number;
+  /**
+   * Written by hand rather than fetched. `fetchedAt` then records when the user last
+   * touched the counter, which is not evidence that anything was fetched — so
+   * `isStale()` skips these, or a single `+1` would suppress the popup's auto-refresh
+   * of every real platform for a whole interval.
+   */
+  manual?: true;
 }
 
 /** One point per platform per day. Same-day writes overwrite rather than append. */
@@ -116,7 +123,7 @@ export function defaultState(): TrackerState {
 /**
  * Brings any older stored blob up to SCHEMA_VERSION. Every step so far is additive —
  * each version only introduced new fields with defaults — so one merge covers v0
- * through v4 alike, and an upgrade never discards data the user has accumulated. If a
+ * through v5 alike, and an upgrade never discards data the user has accumulated. If a
  * future version ever needs to *reshape* stored data, this becomes a version-branched
  * chain instead.
  *

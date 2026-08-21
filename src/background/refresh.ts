@@ -1,6 +1,7 @@
 import { fetchContests } from '@/platforms/contests';
+import { customAdapters } from '@/platforms/custom/adapter';
 import { allAdapters, getAdapter } from '@/platforms/registry';
-import type { PlatformId } from '@/platforms/types';
+import type { PlatformAdapter, PlatformId } from '@/platforms/types';
 import { activePlatforms, readState, recordFailure, recordSuccess, updateState } from '@/storage/repo';
 import type { FailureKind, TrackerState } from '@/storage/schema';
 import { updateBadge } from './badge';
@@ -39,8 +40,14 @@ export interface RefreshOutcome {
  * failure is recorded on the snapshot so one broken platform cannot blank the popup
  * or abort its siblings.
  */
-export async function refreshPlatform(platform: PlatformId, handle: string): Promise<RefreshOutcome> {
-  const adapter = getAdapter(platform, []);
+export async function refreshPlatform(
+  platform: PlatformId,
+  handle: string,
+  // Required rather than defaulted to [], for the same reason allAdapters requires it:
+  // a call site that forgets would silently fail to find any user-defined platform.
+  custom: readonly PlatformAdapter[],
+): Promise<RefreshOutcome> {
+  const adapter = getAdapter(platform, custom);
   if (!adapter) {
     return { platform, ok: false, error: 'Platform not supported yet' };
   }
@@ -66,8 +73,8 @@ export async function refreshPlatform(platform: PlatformId, handle: string): Pro
  */
 export async function refreshAll(only?: PlatformId[]): Promise<RefreshOutcome[]> {
   const state = await readState();
-  // Phase 0/1: no custom adapters are built yet.
-  const adapters = allAdapters([]);
+  const custom = customAdapters(state.settings.custom);
+  const adapters = allAdapters(custom);
   const fetchable = new Set(activePlatforms(state.settings, adapters));
 
   // Even an explicit `only` is intersected with what is actually fetchable, so a Retry
@@ -76,7 +83,7 @@ export async function refreshAll(only?: PlatformId[]): Promise<RefreshOutcome[]>
 
   const tasks = targets.map(async (platform, index) => {
     await new Promise((resolve) => setTimeout(resolve, index * STAGGER_MS));
-    return refreshPlatform(platform, state.settings.handles[platform] ?? '');
+    return refreshPlatform(platform, state.settings.handles[platform] ?? '', custom);
   });
 
   const outcomes = await Promise.all(tasks);
