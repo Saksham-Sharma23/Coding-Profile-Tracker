@@ -1,27 +1,115 @@
-<!doctype html><html><body><div class='user-details-container'>
-<div class="rating-number">
-                    3355                </div>
-<div class="rating-star">
-                    <span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span>                </div>
-<div class="rating-ranks">
-                <ul class="inline-list">
-                    <li>
-                        <a href="/ratings/all">
-                            <strong>
-                                Inactive                            </strong>
-                        </a>
-                        Global Rank
-                    </li>
+<!doctype html>
+<!--
+  Trimmed capture of https://www.codechef.com/users/gennady.korotkevich — a public
+  reference account, never the maintainer's own profile.
 
-                    <li>
-                        <a href="/ratings/all?filterBy=Country%3D">
-                            <strong>
+  Kept deliberately structural rather than minimal. The previous fixture was a 1.3 KB
+  snippet of only the elements the parser already read, so it could not have caught the
+  two things that were actually wrong with the parser: that page-existence was inferred
+  from the rating, and that CodeChef now emits TWO rating blocks. Both are represented
+  below, with the DSA block's unrelated numbers left in place so the scoping is tested
+  rather than assumed.
+-->
+<html>
+  <head>
+    <title>gennady.korotkevich - CodeChef User Profile with global rank 1 | CodeChef</title>
+  </head>
+  <body>
+    <div class="user-profile-container">
+      <div class="content-area small-8 columns">
+        <div class="user-details-container plr10">
+          <header>
+            <h1 class="h2-style">Gennady Korotkevich</h1>
+          </header>
+
+          <section class="user-details">
+            <ul class="side-nav">
+              <li>
+                <label>Username:</label>
+                <span>
+                  <span class="rating">7&#9733;</span>
+                  <span class="m-username--link">gennady.korotkevich</span>
+                </span>
+              </li>
+              <li><label>Country:</label><span><span class="user-country-name">Belarus</span></span></li>
+            </ul>
+          </section>
+
+          <section class="problems-solved">
+            <h3>Total Problems Solved: 632</h3>
+          </section>
+        </div>
+      </div>
+
+      <div class="rating-data-section">
+        <div id="rating-block-all">
+          <div class="rating-header text-center">
+            <div class="rating-number">
+                    3355                </div>
+
+            <div>(Div 1)</div>
+
+            <div class="rating-star">
+              <span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span><span style="background-color:#D0011B">&#9733;</span>                </div>
+
+            <a href="/ratings"><strong>CodeChef Rating</strong></a>
+            <small>(Highest Rating 3445)</small>
+          </div>
+
+          <div class="rating-ranks">
+            <ul class="inline-list">
+              <li>
+                <a href="/ratings/all">
+                  <strong>
                                 Inactive                            </strong>
-                        </a>
-                        Country Rank
-                    </li>
-                </ul>
-            </div>
-<small>(Highest Rating 3445)</small>
-<h3>Total Problems Solved: 632</h3>
-</div></body></html>
+                </a>
+                Global Rank
+              </li>
+              <li>
+                <a href="/ratings/all?filterBy=Country%3D">
+                  <strong>
+                                Inactive                            </strong>
+                </a>
+                Country Rank
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!--
+          The second rating block. Its numbers are a different scale entirely — "NA"
+          and a highest of 0 on an account rated 3355 — so anything that reads
+          `.rating-number` without scoping reports nonsense.
+        -->
+        <div id="rating-block-dsa-monday" style="display:none">
+          <div class="rating-header text-center">
+            <div class="rating-number">
+                    NA                </div>
+
+            <a href="/ratings/dsa-monday"><strong>DSA Rating</strong></a>
+            <small>(Highest Rating 0)</small>
+          </div>
+
+          <div class="rating-ranks">
+            <ul class="inline-list">
+              <li>
+                <a href="/ratings/dsa-monday">
+                  <strong>
+                                Inactive                            </strong>
+                </a>
+                Global Rank
+              </li>
+              <li>
+                <a href="/ratings/dsa-monday?filterBy=Country%3D">
+                  <strong>
+                                Inactive                            </strong>
+                </a>
+                Country Rank
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
