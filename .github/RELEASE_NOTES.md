@@ -1,31 +1,23 @@
-## What's new in 0.3.0
+## What's new in 0.4.0
 
-**Track anything, not just the five built-in sites.** Add your own platform for
-progress no API will ever report — Striver's SDE Sheet, NeetCode 150, a book you are
-working through — and keep the count by hand with `+`/`−` from the popup or the
-dashboard. Each one chooses whether it counts toward your cross-platform total, because
-curated sheets are lists *of* LeetCode problems and counting both counts the same work
-twice.
+**A side panel.** The tracker can now dock beside whatever you are browsing instead of
+living in a tab you open and close. It shows the same rows as the popup — with the
+hand-kept counters — and stays put when you click the page, which the popup never could.
 
-**A real dashboard.** A sidebar over four views — Overview, Platforms, Problems and
-Settings — instead of one long scroll with the platform cards stranded at the bottom.
-Settings moved in, so there is no separate tab any more, and the rail lists every
-tracked platform and flags a broken one from any view.
+It also follows you: open a LeetCode problem and LeetCode's row moves to the top and
+expands. That needs no new access. The extension deliberately does **not** request the
+`tabs` permission, so Chrome only ever tells it the address of the five sites it already
+had permission for — it cannot see anything else you browse, even in principle.
 
-**CodeChef fixes.** Two, both of which produced confidently wrong answers:
+Usernames, pause switches, the daily goal and the theme are all editable inside the
+panel, so the small changes stop costing a tab.
 
-- An account that has never entered a rated contest has no rating block, and the
-  extension used the rating to decide whether the account existed at all. Real users
-  were reported as "no such user", pointing the blame at a username that was correct.
-  Page existence is now decided by the profile page itself, and anything unrecognisable
-  says so rather than guessing.
-- CodeChef renders two rating blocks now — the classic rating and a separate DSA rating
-  whose numbers are unrelated. The extension read whichever came first. It now reads the
-  right one.
+**You choose what the toolbar icon opens** — the popup or the side panel — under
+Settings › Appearance. Chrome allows the icon only one of the two. It stays on the popup
+unless you change it, and either surface has a button to reach the other.
 
-Also: the popup's auto-refresh can no longer be suppressed by clicking `+1` on a
-hand-kept counter, and "solved today" now distinguishes a day you did not move a counter
-from a day the extension did not manage to look.
+Needs Chrome 116 or newer for the panel; on older builds the option is hidden rather
+than shown as a switch that does nothing.
 
 ## Install
 
@@ -35,6 +27,8 @@ from a day the extension did not manage to look.
 3. Click **Load unpacked** and select the unzipped folder.
 
 Settings opens automatically — add a username for any platform you want tracked.
+To dock the tracker beside your browsing, open the popup and click **Open side
+panel**, or set the toolbar icon to open it directly under Settings › Appearance.
 
 Works in Chrome, Edge, Brave, Opera and Arc.
 

@@ -101,7 +101,11 @@ that option rather than offering a switch that does nothing.
   the old folder, and click the reload arrow on the extension's card. **Your usernames
   and history survive** — they live in the browser's storage, not in the folder.
 
+Every earlier version stays downloadable on the [releases page][all-releases] — handy
+if a new one misbehaves and you want to drop back.
+
 [releases]: https://github.com/Saksham-Sharma23/Coding-Profile-Tracker/releases/latest
+[all-releases]: https://github.com/Saksham-Sharma23/Coding-Profile-Tracker/releases
 
 ## Run from source
 
