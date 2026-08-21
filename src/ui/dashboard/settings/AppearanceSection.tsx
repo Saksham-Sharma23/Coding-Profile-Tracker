@@ -1,5 +1,6 @@
 import { sendMessage } from '@/background/messages';
-import { MIN_REFRESH_MINUTES, type ThemePref } from '@/storage/schema';
+import { sidePanelSupported } from '@/background/icon-behavior';
+import { MIN_REFRESH_MINUTES, type IconOpens, type ThemePref } from '@/storage/schema';
 import { THEME_CHOICES } from '../../theme';
 import type { SectionProps } from './types';
 
@@ -7,6 +8,16 @@ const REFRESH_CHOICES = [15, 30, 60, 120, 360, 720];
 
 export function AppearanceSection({ state, updateSettings }: SectionProps) {
   const { settings } = state;
+
+  /** Chrome 114+. Offering a switch that silently does nothing is worse than hiding it. */
+  const canSidePanel = sidePanelSupported();
+
+  const setIconOpens = async (pref: IconOpens) => {
+    await updateSettings({ iconOpens: pref });
+    // The worker owns the pair of Chrome calls, so the change takes effect on the next
+    // click rather than the next browser start.
+    await sendMessage({ type: 'apply-icon-behavior', pref });
+  };
 
   return (
     <>
@@ -45,6 +56,25 @@ export function AppearanceSection({ state, updateSettings }: SectionProps) {
         <span className="muted hint">
           Minimum {MIN_REFRESH_MINUTES} minutes, to stay polite to these sites.
         </span>
+
+        {canSidePanel && (
+          <>
+            <label htmlFor="icon-opens">Toolbar icon opens</label>
+            <select
+              id="icon-opens"
+              value={settings.iconOpens}
+              onChange={(e) => void setIconOpens(e.target.value as IconOpens)}
+            >
+              <option value="popup">The popup</option>
+              <option value="sidepanel">The side panel</option>
+            </select>
+            <span className="muted hint">
+              Chrome allows the icon only one of the two. The popup closes as soon as you
+              click the page behind it; the side panel stays open beside it while you
+              solve. Either way you can still reach the other from a button.
+            </span>
+          </>
+        )}
       </section>
     </>
   );

@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { sidePanelSupported } from '@/background/icon-behavior';
 import { isStale } from '@/background/scheduler';
 import { customAdapters } from '@/platforms/custom/adapter';
 import { orderedAdapters } from '@/platforms/registry';
@@ -9,7 +10,7 @@ import { PlatformRow } from '../components/PlatformRow';
 import { RefreshIcon, SettingsIcon } from '../icons';
 import { isExpanded, visiblePlatforms } from '@/shared/progress';
 import { useThemeMirror, useTracker } from '../useTracker';
-import { SummaryStrip } from './SummaryStrip';
+import { SummaryStrip } from '../components/SummaryStrip';
 import './popup.css';
 
 export function Popup() {
@@ -39,6 +40,8 @@ export function Popup() {
     const next = open.includes(id) ? open.filter((each) => each !== id) : [...open, id];
     void updateSettings({ expanded: next });
   }
+
+  const windowId = useCurrentWindowId();
 
   return (
     <div className="popup">
@@ -104,22 +107,66 @@ export function Popup() {
       )}
 
       <footer className="row spread popup-footer">
-        <button
-          className="btn-ghost btn-quiet popup-link"
-          onClick={() =>
-            void chrome.tabs.create({
-              url: chrome.runtime.getURL('src/ui/dashboard/index.html'),
-            })
-          }
-        >
-          Open dashboard
-        </button>
+        <div className="row popup-links">
+          <button
+            className="btn-ghost btn-quiet popup-link"
+            onClick={() =>
+              void chrome.tabs.create({
+                url: chrome.runtime.getURL('src/ui/dashboard/index.html'),
+              })
+            }
+          >
+            Open dashboard
+          </button>
+
+          {windowId !== undefined && (
+            <button
+              className="btn-ghost btn-quiet popup-link"
+              /*
+               * `sidePanel.open()` needs a user gesture, and any `await` ahead of it
+               * spends the gesture — so the windowId is resolved on mount and this
+               * handler calls open() as its very first statement.
+               */
+              onClick={() => void chrome.sidePanel.open({ windowId })}
+            >
+              Open side panel
+            </button>
+          )}
+        </div>
         <span className="muted">
           {tracked.length} {tracked.length === 1 ? 'platform' : 'platforms'}
         </span>
       </footer>
     </div>
   );
+}
+
+/**
+ * The window this popup belongs to, resolved once on mount.
+ *
+ * Fetched ahead of time rather than inside the click handler because
+ * `chrome.sidePanel.open()` requires a user gesture and an `await` in front of it
+ * consumes that gesture — the call would reject. Undefined until it resolves, and on
+ * browsers with no side panel at all, which is also what hides the button.
+ */
+function useCurrentWindowId(): number | undefined {
+  const [windowId, setWindowId] = useState<number>();
+
+  useEffect(() => {
+    if (!sidePanelSupported()) return;
+    let active = true;
+    chrome.tabs
+      .query({ active: true, currentWindow: true })
+      // windowId is not one of the fields the `tabs` permission gates, so this needs no
+      // extra permission.
+      .then((tabs) => active && setWindowId(tabs[0]?.windowId))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return windowId;
 }
 
 /** Placeholder rows, so opening the popup does not flash a bare "Loading…". */

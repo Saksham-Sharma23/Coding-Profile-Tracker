@@ -1,0 +1,118 @@
+/*
+ * The side panel.
+ *
+ * Structurally the popup with two differences that matter: no fixed width, because the
+ * user drags this one to whatever they want (Chrome enforces a 320px floor and offers
+ * no API to set or read it), and no height cap, because the panel fills the window
+ * instead of hanging off a toolbar button.
+ *
+ * Everything inside is the popup's leaves — SummaryStrip, ContestStrip, PlatformRow —
+ * which are all fluid and carry no min-width of their own.
+ */
+.panel {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex: none;
+}
+
+.panel-title {
+  font-size: var(--fs-sm);
+}
+
+.panel-actions {
+  gap: var(--s-1);
+}
+
+/* The gear stays lit while its view is showing, so the toggle reads as a place you are
+   rather than a button you pressed. */
+.panel-actions .btn-icon.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* The only scrolling region: the header and footer stay put however long the list gets. */
+.panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.panel .rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.panel-footer {
+  padding: var(--s-2) var(--s-4);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex: none;
+  font-size: var(--fs-2xs);
+}
+
+.panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.panel-empty p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ---- settings in place -------------------------------------------------- */
+
+/*
+ * The settings sections are reused verbatim from the dashboard. Their own stylesheet
+ * already collapses .platform-row to a stacked layout below 620px, which is every panel
+ * width, so this only has to undo the page-level measure and tighten the headings for a
+ * narrow column.
+ */
+.panel-settings.options {
+  max-width: none;
+  gap: 0;
+}
+
+.panel-settings h2:first-of-type {
+  margin-top: 0;
+}
+
+.panel-settings h2 {
+  margin-top: var(--s-6);
+}
+
+/* The reorder column earns its width on a wide page; in a 320px panel it is the
+   difference between a username field and a cramped one. */
+.panel-settings .reorder {
+  display: none;
+}
+
+.panel-settings .input-wrap input {
+  width: 100%;
+}
+
+.panel-more {
+  margin: var(--s-6) 0 var(--s-3);
+  line-height: 1.45;
+}
+
+.panel-skeleton {
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}

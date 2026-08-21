@@ -36,6 +36,15 @@ The sidebar lists every platform you track and flags a broken one from any view.
 curated sheets are lists *of* LeetCode problems and counting both would count the same
 work twice.
 
+**Side panel** — the same rows docked beside whatever you are browsing, so checking
+progress or nudging a counter costs no tab and nothing disappears when you click the
+page. It surfaces the platform for the site you are on: open a LeetCode problem and
+LeetCode's row moves to the top and expands. Usernames, pause switches, the daily goal
+and the theme are all editable inside the panel.
+
+You choose what the toolbar icon opens — the popup or the panel — in Settings. Chrome
+allows only one of the two, and it defaults to the popup.
+
 **Toolbar badge** — today's solve count, visible without opening anything.
 
 **Contest countdown** — the next Codeforces or LeetCode contest, for the platforms you
@@ -80,7 +89,9 @@ tools for this.
 Settings opens automatically — add a username for any platform you want to track, then
 hit **Save and refresh**.
 
-Works in any Chromium browser with Manifest V3: Chrome, Edge, Brave, Opera, Arc.
+Works in any Chromium browser with Manifest V3: Chrome, Edge, Brave, Opera, Arc. The
+side panel additionally needs Chrome 116 or newer; on older builds the extension hides
+that option rather than offering a switch that does nothing.
 
 ### Two things to expect from a manually loaded extension
 
@@ -125,6 +136,10 @@ Nothing leaves your machine.
 - No account, no sign-in, no server.
 - No analytics, no telemetry, no tracking.
 - Only public profile data is read, and no credentials are ever stored or sent.
+- The side panel reads the current tab's address to know which platform you are on, and
+  it deliberately does **not** request the `tabs` permission. Chrome therefore only ever
+  reveals the URL for hosts the extension already has permission for — the five tracked
+  sites — so the panel cannot see anything else you browse, even in principle.
 - Everything lives in `chrome.storage.local`, and you can export or delete it from
   Settings at any time.
 

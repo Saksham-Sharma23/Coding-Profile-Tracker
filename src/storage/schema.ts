@@ -8,7 +8,7 @@ import { isCustomId, sanitizeCustom, type CustomPlatform } from './custom';
 
 export type { CustomPlatform, SolvedProblem };
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Why a fetch failed, kept so the UI can offer the right remedy per case. */
 export type FailureKind = 'handle-not-found' | 'scrape-failed' | 'fetch-failed';
@@ -42,6 +42,17 @@ export interface HistoryPoint {
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
+/**
+ * What clicking the toolbar icon does.
+ *
+ * A setting rather than a fixed choice because Chrome makes the two mutually
+ * exclusive: `action.default_popup` overrides
+ * `setPanelBehavior({openPanelOnActionClick:true})`, so the icon opens one or the
+ * other. Both surfaces still exist either way — the popup keeps a button that opens
+ * the panel, and the panel keeps a link to the dashboard.
+ */
+export type IconOpens = 'popup' | 'sidepanel';
+
 export interface ReminderSettings {
   enabled: boolean;
   /** Local hour, 0-23. */
@@ -59,6 +70,8 @@ export interface Settings {
   /** Problems per day to aim for. 0 disables the goal UI entirely. */
   dailyGoal: number;
   theme: ThemePref;
+  /** Whether the toolbar icon opens the popup or the side panel. */
+  iconOpens: IconOpens;
   reminder: ReminderSettings;
   /** Platforms the user defined themselves. */
   custom: CustomPlatform[];
@@ -104,6 +117,8 @@ export function defaultSettings(): Settings {
     expanded: [],
     dailyGoal: 0,
     theme: 'system',
+    // Defaults to the popup: an update should never change what a familiar click does.
+    iconOpens: 'popup',
     reminder: { enabled: false, hour: DEFAULT_REMINDER_HOUR },
     custom: [],
   };
@@ -123,7 +138,7 @@ export function defaultState(): TrackerState {
 /**
  * Brings any older stored blob up to SCHEMA_VERSION. Every step so far is additive —
  * each version only introduced new fields with defaults — so one merge covers v0
- * through v5 alike, and an upgrade never discards data the user has accumulated. If a
+ * through v6 alike, and an upgrade never discards data the user has accumulated. If a
  * future version ever needs to *reshape* stored data, this becomes a version-branched
  * chain instead.
  *
@@ -152,6 +167,7 @@ export function migrate(raw: unknown): TrackerState {
       expanded: sanitizeIds(settings.expanded, known),
       dailyGoal: clampGoal(settings.dailyGoal),
       theme: isThemePref(settings.theme) ? settings.theme : 'system',
+      iconOpens: settings.iconOpens === 'sidepanel' ? 'sidepanel' : 'popup',
       reminder: sanitizeReminder(settings.reminder),
       custom,
     },

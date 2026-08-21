@@ -3,6 +3,7 @@ import type { TrackerState } from '@/storage/schema';
 import { FlameIcon } from '../icons';
 import { bestStreak, solvedToday, totalSolved } from '@/shared/progress';
 import { GoalRing } from '../viz/GoalRing';
+import './SummaryStrip.css';
 
 interface Props {
   state: TrackerState;

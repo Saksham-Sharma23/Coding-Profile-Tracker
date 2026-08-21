@@ -2,6 +2,7 @@ import { customAdapters } from '@/platforms/custom/adapter';
 import { getAdapter } from '@/platforms/registry';
 import { getSettings, readState, updateState } from '@/storage/repo';
 import { updateBadge } from './badge';
+import { applyIconBehavior, restoreIconBehavior } from './icon-behavior';
 import type { Message, Response } from './messages';
 import { refreshAll } from './refresh';
 import {
@@ -22,6 +23,7 @@ async function rearm(): Promise<void> {
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   await rearm();
+  await restoreIconBehavior();
   // Send new users straight to the options page — the extension does nothing
   // until at least one handle is configured.
   if (details.reason === 'install') {
@@ -35,6 +37,9 @@ chrome.runtime.onStartup.addListener(() => {
   void rearm();
   // The badge is not persisted across restarts, so repaint it from stored state.
   void updateBadge();
+  // Neither is chrome.action.setPopup, so the icon preference has to be re-applied or
+  // it quietly reverts to the popup on every browser restart.
+  void restoreIconBehavior();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -86,6 +91,12 @@ async function handle(message: Message): Promise<Response> {
 
     case 'reschedule':
       await rearm();
+      return { type: 'ack' };
+
+    case 'apply-icon-behavior':
+      // Sent by the settings UI so the choice takes effect immediately, rather than
+      // waiting for the next browser start.
+      await applyIconBehavior(message.pref);
       return { type: 'ack' };
 
     case 'handle-detected':

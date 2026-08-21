@@ -187,9 +187,52 @@ no business being in one. Where a real capture cannot exercise a path (the refer
 LeetCode account is inactive, so its recent-submissions list is empty), the test builds
 a synthetic payload in the shape verified live.
 
-Storage is at **schema v5**. Every migration step so far is additive, so one merge
-covers v0 through v5; `migrate()` becomes a version-branched chain only when some
+Storage is at **schema v6**. Every migration step so far is additive, so one merge
+covers v0 through v6; `migrate()` becomes a version-branched chain only when some
 future version has to reshape data rather than add to it.
+
+
+## The side panel
+
+Two Chrome facts shape it, both verified rather than assumed:
+
+1. **`action.default_popup` overrides `setPanelBehavior({openPanelOnActionClick: true})`.**
+   The toolbar icon opens the popup or the panel, never both, and the API docs do not
+   say so. Which one is `settings.iconOpens`, applied at runtime by
+   `background/icon-behavior.ts` through `chrome.action.setPopup()`.
+2. **The panel's minimum width is 320px**, hard-coded in Chromium as
+   `kMinSidePanelContentsWidth`, with no flag and no extension override. There is no API
+   to set or even read a preferred width.
+
+That second number decides the content. The popup is built for 380px and `PlatformRow`
+is fluid with no min-width, so the panel reuses the popup's leaves directly. The
+dashboard could not: `.viz-plot svg` carries `min-width: 420px` inside a horizontal
+scroller, so the rating chart and the solved-problems table would both scroll sideways —
+tolerable as an overflow case, wrong for a primary surface.
+
+**`chrome.action.setPopup` does not survive a browser restart.** It is a runtime
+override of the manifest's `default_popup`, so `restoreIconBehavior()` runs from
+`onStartup` as well as `onInstalled`. Without that call the preference silently reverts
+every morning, which looks exactly like the setting failing to save.
+
+`chrome.sidePanel.open()` requires a user gesture, and **any `await` before the call
+spends it**. The popup therefore resolves its `windowId` on mount and the click handler
+calls `open()` as its first statement — the same trap as `chrome.permissions.request()`.
+
+### Reacting to the current site, without the `tabs` permission
+
+`chrome.tabs.query` works without `tabs`; Chrome simply omits `url` unless the extension
+holds a host permission for that tab. Since the only grants are the five tracked sites,
+every other page arrives as `undefined` and the panel is structurally incapable of
+seeing it. `shared/site-match.ts` maps host to platform, and a test cross-checks that map
+against `manifest.host_permissions` so the hand-kept copy cannot drift.
+
+The emphasis this produces — matched platform first, expanded — is **view state and is
+never written to storage**. `settings.order` and `settings.expanded` are the popup's
+memory too, so persisting either would rewrite the order the user chose in Settings just
+because they browsed somewhere. Auto-expand also fires only when the matched platform
+*changes*, since an SPA rewrites its URL constantly and re-applying would re-open a row
+the user deliberately collapsed.
 
 ## Politeness and terms
 

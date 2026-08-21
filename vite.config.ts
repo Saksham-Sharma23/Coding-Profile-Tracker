@@ -27,10 +27,11 @@ export default defineConfig({
 
     rollupOptions: {
       input: {
-        // Neither is referenced by an action/options key, so CRXJS needs both
+        // None of these is referenced by an action/options key, so CRXJS needs them
         // declared explicitly to emit them.
         dashboard: 'src/ui/dashboard/index.html',
         offscreen: 'src/offscreen/offscreen.html',
+        sidepanel: 'src/ui/sidepanel/index.html',
       },
     },
   },

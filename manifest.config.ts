@@ -11,7 +11,20 @@ export default defineManifest({
   // only read from chrome.storage, so they never touch these hosts directly.
   // `notifications` backs the optional daily reminder only; with the reminder off,
   // nothing in the extension ever calls it.
-  permissions: ['storage', 'alarms', 'offscreen', 'unlimitedStorage', 'notifications'],
+  //
+  // `sidePanel` grants no access to page content. Note what is deliberately absent:
+  // the `tabs` permission. The side panel reads the active tab's URL to surface the
+  // matching platform, and host_permissions alone populate `tab.url` for exactly the
+  // sites listed below — so the panel is structurally incapable of seeing anything
+  // else the user browses.
+  permissions: [
+    'storage',
+    'alarms',
+    'offscreen',
+    'unlimitedStorage',
+    'notifications',
+    'sidePanel',
+  ],
 
   icons: {
     16: 'icon-16.png',
@@ -36,6 +49,16 @@ export default defineManifest({
   background: {
     service_worker: 'src/background/index.ts',
     type: 'module',
+  },
+
+  /*
+   * The panel and the popup are mutually exclusive on the toolbar icon: a
+   * `default_popup` overrides setPanelBehavior({openPanelOnActionClick:true}), so the
+   * icon can do one or the other. Which one is a user setting, applied at runtime by
+   * background/icon-behavior.ts via chrome.action.setPopup().
+   */
+  side_panel: {
+    default_path: 'src/ui/sidepanel/index.html',
   },
 
   action: {

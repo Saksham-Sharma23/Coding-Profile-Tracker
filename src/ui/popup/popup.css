@@ -74,67 +74,7 @@
 
 /* ---- summary strip ---------------------------------------------------- */
 
-.summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--s-3) var(--s-4);
-  padding: var(--s-4);
-}
-
-.summary-today {
-  gap: var(--s-3);
-}
-
-.summary-today-text {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Proportional figures: tabular-nums gives every digit a zero's width, which makes a
-   large standalone number look loose. */
-.summary-value {
-  font-size: var(--fs-xl);
-  font-weight: 600;
-  line-height: 1.05;
-  font-variant-numeric: normal;
-}
-
-.summary-label {
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.summary-side {
-  display: flex;
-  gap: var(--s-5);
-  text-align: right;
-}
-
-.summary-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.summary-side-value {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.summary-streak {
-  gap: 3px;
-  color: var(--text);
-}
-
-.summary-nudge {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: var(--fs-2xs);
-}
+/* Moved to components/SummaryStrip.css — the side panel renders it too. */
 
 .goal-ring {
   flex: none;
@@ -154,4 +94,11 @@
 
 .skeleton-row {
   height: 38px;
+}
+
+/* Two links now share the footer, so they get their own group rather than each
+   fighting the platform count for space. */
+.popup-links {
+  gap: var(--s-1);
+  min-width: 0;
 }

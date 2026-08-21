@@ -1,14 +1,40 @@
 /**
- * Minimal in-memory `chrome.storage.local`, which is all `storage/repo.ts` touches.
+ * Minimal in-memory Chrome API surface — enough for `storage/repo.ts` and for the UI
+ * surfaces that read tabs or drive the toolbar icon.
  *
  * Exists so tests can exercise the real `saveSettings` / `recordSuccess` /
  * `recordManual` chokepoints end to end rather than only the pure helpers around them —
  * the bugs this repo has actually shipped lived in those chokepoints, not in the
  * helpers. Call it from `beforeEach`; each call starts from an empty bag.
+ *
+ * Returns the stub object so a test can reach in and assert on it, or replace one
+ * method with a spy.
  */
-export function mockChromeStorage(): void {
+export interface ChromeStub {
+  chrome: Record<string, unknown>;
+  /** The active tab reported by chrome.tabs.query. Assign to change what a test sees. */
+  activeTab: { url?: string; windowId?: number; id?: number };
+  /** Listeners registered on tabs.onActivated / onUpdated, so a test can fire them. */
+  tabListeners: (() => void)[];
+}
+
+export function mockChromeStorage(): ChromeStub {
   const bag: Record<string, unknown> = {};
-  (globalThis as unknown as { chrome: unknown }).chrome = {
+  const stub: ChromeStub = {
+    chrome: {},
+    activeTab: { url: undefined, windowId: 1, id: 1 },
+    tabListeners: [],
+  };
+
+  const listener = {
+    addListener: (fn: () => void) => stub.tabListeners.push(fn),
+    removeListener: (fn: () => void) => {
+      const at = stub.tabListeners.indexOf(fn);
+      if (at >= 0) stub.tabListeners.splice(at, 1);
+    },
+  };
+
+  stub.chrome = {
     storage: {
       local: {
         get: async (key: string) => ({ [key]: bag[key] }),
@@ -18,6 +44,21 @@ export function mockChromeStorage(): void {
       // these tests writes from a second surface, so the listeners are never called.
       onChanged: { addListener: () => {}, removeListener: () => {} },
     },
-    runtime: { openOptionsPage: async () => {}, sendMessage: async () => ({ type: 'ack' }) },
+    runtime: {
+      openOptionsPage: async () => {},
+      sendMessage: async () => ({ type: 'ack' }),
+      getURL: (path: string) => `chrome-extension://test/${path}`,
+    },
+    tabs: {
+      query: async () => [stub.activeTab],
+      create: async () => {},
+      onActivated: listener,
+      onUpdated: listener,
+    },
+    action: { setPopup: async () => {} },
+    sidePanel: { setPanelBehavior: async () => {}, open: async () => {} },
   };
+
+  (globalThis as unknown as { chrome: unknown }).chrome = stub.chrome;
+  return stub;
 }

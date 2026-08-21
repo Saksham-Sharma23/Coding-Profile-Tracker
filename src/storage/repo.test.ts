@@ -194,3 +194,27 @@ describe('pointForDay', () => {
     expect(pointForDay(undefined, '2026-08-01')).toBeUndefined();
   });
 });
+
+describe('migrate — iconOpens', () => {
+  it('defaults to the popup, so an update never changes what a click does', () => {
+    expect(migrate(undefined).settings.iconOpens).toBe('popup');
+    expect(migrate({ settings: {} }).settings.iconOpens).toBe('popup');
+  });
+
+  it('keeps a stored preference', () => {
+    expect(migrate({ settings: { iconOpens: 'sidepanel' } }).settings.iconOpens).toBe('sidepanel');
+  });
+
+  it('falls back rather than storing junk from an imported file', () => {
+    // migrate() is the import trust boundary, and this value is handed straight to
+    // chrome.action.setPopup / setPanelBehavior.
+    for (const junk of ['SIDEPANEL', 'panel', '', 0, null, {}, ['sidepanel']]) {
+      expect(migrate({ settings: { iconOpens: junk } }).settings.iconOpens).toBe('popup');
+    }
+  });
+
+  it('survives a round trip through migrate', () => {
+    const once = migrate({ settings: { iconOpens: 'sidepanel' } });
+    expect(migrate(once)).toEqual(once);
+  });
+});
