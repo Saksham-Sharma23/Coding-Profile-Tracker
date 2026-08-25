@@ -5,18 +5,26 @@
  * which is exactly why it was chosen: a browser extension cannot keep a secret, and every
  * other flow would have forced a server to sit between the user and their own repo.
  *
- * To enable it for a build:
- *   1. github.com/settings/developers -> New OAuth App
- *   2. Any name and homepage URL; the callback URL is unused by the device flow
- *   3. On the app's page, tick "Enable Device Flow"
- *   4. Paste the Client ID below
+ * This one belongs to the app users see on the approval screen. It identifies the
+ * *application*, never an account: every user authorises their own GitHub against it and
+ * their token is minted for them alone, so one public id serves everybody.
  *
- * Left blank in the repo on purpose. A fork should register its own app rather than
- * inherit someone else's, and an unset value degrades cleanly: the UI hides the
- * "Connect with GitHub" button and offers the personal access token path, which needs no
- * registration at all and grants strictly narrower access.
+ * The app is registered with "Expire user access tokens" OFF. Turning it on would make
+ * GitHub issue 8-hour tokens plus a refresh_token, and pollForToken() reads only
+ * access_token — so every user would be silently disconnected twice a day. Adding refresh
+ * support is the prerequisite for changing that, not a setting to flip on its own.
+ *
+ * Forking? Register your own app rather than inheriting this one:
+ *   1. github.com/settings/developers -> New OAuth App
+ *   2. Any name and homepage URL; delete the redirect URI, the device flow never redirects
+ *   3. Tick "Enable Device Flow"; leave "Expire user access tokens" unticked
+ *   4. Paste the Client ID below. No client secret is needed — do not generate one.
+ *
+ * Blanking it degrades cleanly rather than breaking: the UI hides the "Connect with
+ * GitHub" button and offers the personal access token path, which needs no registration
+ * at all and grants strictly narrower access.
  */
-export const GITHUB_CLIENT_ID = '';
+export const GITHUB_CLIENT_ID = 'Ov23liAxefxwrIy1K70y';
 
 export function isDeviceFlowConfigured(): boolean {
   return GITHUB_CLIENT_ID.trim().length > 0;
