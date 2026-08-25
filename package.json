@@ -1,6 +1,6 @@
 {
   "name": "coding-profile-tracker",
-  "version": "0.4.0",
+  "version": "1.5.0",
   "description": "Track your LeetCode, Codeforces, HackerRank, CodeChef and GeeksforGeeks progress from one place.",
   "private": true,
   "type": "module",

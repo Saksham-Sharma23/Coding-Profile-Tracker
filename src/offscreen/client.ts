@@ -1,4 +1,10 @@
-import type { CodechefFields, ParseRequest, ParseResponse } from './protocol';
+import type {
+  CodechefFields,
+  MarkdownRequest,
+  MarkdownResponse,
+  ParseRequest,
+  ParseResponse,
+} from './protocol';
 
 const PATH = 'src/offscreen/offscreen.html';
 
@@ -18,7 +24,9 @@ async function ensureDocument(): Promise<void> {
       .createDocument({
         url: PATH,
         reasons: ['DOM_PARSER' as chrome.offscreen.Reason],
-        justification: 'Parse fetched profile HTML, which service workers cannot do.',
+        justification:
+          'Parse fetched profile HTML and convert problem statements to Markdown, ' +
+          'which service workers cannot do.',
       })
       .finally(() => {
         creating = undefined;
@@ -36,4 +44,24 @@ export async function parseCodechefHtml(html: string): Promise<CodechefFields> {
     throw new Error(response?.error ?? 'offscreen parser did not respond');
   }
   return response.fields;
+}
+
+/**
+ * Converts a problem statement to Markdown.
+ *
+ * Returns undefined rather than throwing when the conversion fails: a statement is the
+ * one part of a pushed problem that is nice-to-have. Losing the description is a poor
+ * reason to abandon a commit that still carries the code the user actually wrote.
+ */
+export async function htmlToMarkdownOffscreen(html: string): Promise<string | undefined> {
+  if (!html.trim()) return undefined;
+
+  try {
+    await ensureDocument();
+    const request: MarkdownRequest = { type: 'html-to-markdown', html };
+    const response = (await chrome.runtime.sendMessage(request)) as MarkdownResponse | undefined;
+    return response?.markdown || undefined;
+  } catch {
+    return undefined;
+  }
 }

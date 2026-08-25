@@ -258,3 +258,71 @@
 .options .custom-where {
   margin: calc(-1 * var(--s-2)) 0 0;
 }
+
+/* ---- GitHub sync ------------------------------------------------------ */
+
+.options .github-connect {
+  gap: var(--s-3);
+}
+
+.options .github-buttons {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+/* The private-repo route asks for a much wider scope, so it reads as the alternative. */
+.options .github-alt {
+  color: var(--muted);
+}
+
+.options .github-token {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: var(--fs-2xs);
+}
+
+.options .github-token input {
+  width: 320px;
+  max-width: 100%;
+}
+
+.options .github-repos select,
+.options .github-repos input {
+  max-width: 100%;
+}
+
+.options .github-log {
+  margin-top: var(--s-4);
+}
+
+.options .github-log ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.options .github-log li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: var(--s-3);
+  font-size: var(--fs-2xs);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.options .github-log .github-log-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A failure has to be visible in a list that is otherwise all successes. */
+.options .github-log li.failed .muted {
+  color: var(--error);
+}

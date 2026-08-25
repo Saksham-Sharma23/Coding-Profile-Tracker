@@ -86,14 +86,15 @@ refetched at most every six hours, riding the existing alarm rather than adding 
 
 ```
 src/
-  background/      service worker: alarms, refresh orchestration, badge, reminder
+  background/      service worker: alarms, refresh orchestration, badge, reminder, GitHub
   platforms/       one adapter per site + the shared PlatformAdapter contract
+  github/          GitHub sync: auth, REST client, repo layout, rendering, push queue
   shared/          derived numbers used by both the UI and the service worker
   offscreen/       DOM parsing host (service workers have no DOMParser)
   storage/         versioned schema, migrations, typed repo
   ui/              popup, dashboard shell + views + settings, shared components, tokens
   ui/viz/          hand-rolled SVG charts
-  content/         username auto-detect (suggestions only)
+  content/         username auto-detect, and LeetCode submission capture
 scripts/
   make-icons.mjs   draws the icon set (no raster dependency)
 ```
@@ -123,6 +124,50 @@ Two MV3 constraints shape the design:
    offscreen document.
 2. **Service workers are torn down after ~30s idle**, so scheduling uses
    `chrome.alarms` (never `setInterval`) and nothing is cached in module scope.
+
+### GitHub sync
+
+The only outbound path in the extension, added in 1.5.0. Four decisions carry it.
+
+**Capture reads an API, not the DOM.** An obvious implementation patches `window.fetch`
+in the `MAIN` world to watch for the submission response. This instead polls LeetCode's
+own `recentAcSubmissionList` for submission *ids*, then fetches `submissionDetails` for
+the new ones. Slower to notice a solve — a URL-change trigger plus a 60s heartbeat, not
+an instant hook — but a LeetCode redesign cannot break it, and nothing is injected into
+the page.
+
+**Capture runs in the content script because of cookies.** `submissionDetails` is
+owner-only: it returns your code only for a request carrying your session. A content
+script on leetcode.com fetching leetcode.com is same-origin, so the cookie and CSRF token
+come along. The identical call from the service worker is anonymous and returns null.
+The content script asks the worker whether GitHub is connected *before* doing anything,
+so an unconfigured extension makes no extra requests at all.
+
+**The token lives outside `TrackerState`.** Settings exports the whole tracker blob to a
+plaintext download, so a token stored there would ride along into every backup. It is
+kept under its own `github` storage key instead, and `github/storage.test.ts` asserts the
+export cannot contain it. This is enforcement, not convention.
+
+**Commits go through the Git Data API, not the Contents API.** A problem is three or four
+files; `PUT /contents` would make that three or four commits. Blobs → one tree on the
+current head → one commit → move the ref, so history reads as one commit per problem
+solved. Pushes are strictly serialized: concurrent writes to one branch produce nothing
+but 409s, and GitHub's secondary limit asks for roughly one content-creating request per
+second.
+
+The repo's own `.tracker/manifest.json` — not this browser profile — is the source of
+truth for what has been pushed. It is read on every push and when a repository is chosen,
+so a reinstall or a second machine resumes rather than re-committing everything.
+
+Retries are typed rather than uniform: an auth failure clears the token and stops (keeping
+the queue, so reconnecting resumes it), a rate limit waits exactly as long as GitHub
+asked, a ref conflict retries promptly because rebuilding on the new head is the fix, and
+anything else escalates through a backoff schedule. `chrome.alarms` carries a backoff
+across the worker's teardown.
+
+One incidental win: the capture path already fetches the question to write the README, so
+it backfills difficulty and topic tags onto LeetCode problems in the dashboard — data the
+profile API alone never returns.
 
 ### Failure handling
 

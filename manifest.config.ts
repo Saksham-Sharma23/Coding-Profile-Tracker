@@ -46,6 +46,18 @@ export default defineManifest({
     'https://authapi.geeksforgeeks.org/*',
   ],
 
+  /*
+   * GitHub is opt-in, so its hosts are requested at connect time via
+   * chrome.permissions.request() rather than granted at install — the same runtime-grant
+   * pattern user-defined platforms already use for their own origins. Anyone who never
+   * connects a GitHub account never grants these, and the install prompt is unchanged
+   * from the previous version.
+   *
+   * github.com carries the OAuth Device Flow endpoints; api.github.com carries
+   * everything else. They are separate hosts and each needs its own grant.
+   */
+  optional_host_permissions: ['https://github.com/*', 'https://api.github.com/*'],
+
   background: {
     service_worker: 'src/background/index.ts',
     type: 'module',
@@ -74,12 +86,20 @@ export default defineManifest({
 
   options_page: 'src/ui/options/index.html',
 
-  // Username auto-detect. These only read a username and post it to the service
-  // worker as a suggestion the user must confirm; they never write to the page.
+  /*
+   * Username auto-detect. These read a username and post it to the service worker as a
+   * suggestion the user must confirm; they never write to the page.
+   *
+   * LeetCode carries a second script as well. Once a GitHub account is connected AND
+   * pushing is switched on, leetcode-submissions.ts reads the user's own accepted
+   * submissions — the code, the language and the problem statement — so they can be
+   * committed to their repo. It asks the service worker before doing anything, so with
+   * GitHub unconfigured it makes no requests at all. It still never writes to the page.
+   */
   content_scripts: [
     {
       matches: ['https://leetcode.com/*'],
-      js: ['src/content/leetcode.ts'],
+      js: ['src/content/leetcode.ts', 'src/content/leetcode-submissions.ts'],
       run_at: 'document_idle',
     },
     {

@@ -3,6 +3,7 @@ import type { Settings, TrackerState } from '@/storage/schema';
 import { AppearanceSection } from '../settings/AppearanceSection';
 import { CustomPlatformsSection } from '../settings/CustomPlatformsSection';
 import { DataSection } from '../settings/DataSection';
+import { GithubSection } from '../settings/GithubSection';
 import { GoalSection } from '../settings/GoalSection';
 import { PlatformsSection } from '../settings/PlatformsSection';
 import { ReminderSection } from '../settings/ReminderSection';
@@ -44,7 +45,7 @@ export function SettingsView({ state, updateSettings }: Props) {
       </h2>
       <p className="muted intro">
         Everything is fetched directly from your browser and stored locally — no account, no
-        server.
+        server. GitHub sync, if you turn it on, is the one exception.
       </p>
 
       <PlatformsSection key={revision} {...props} />
@@ -55,6 +56,7 @@ export function SettingsView({ state, updateSettings }: Props) {
       )}
 
       <CustomPlatformsSection {...props} />
+      <GithubSection {...props} />
       <GoalSection {...props} />
       <ReminderSection {...props} />
       <AppearanceSection {...props} />

@@ -38,3 +38,25 @@ export interface ParseResponse {
   fields?: CodechefFields;
   error?: string;
 }
+
+/**
+ * Converts a LeetCode problem statement to Markdown for the GitHub push.
+ *
+ * Handled here rather than on the push path because the conversion needs a real DOM and
+ * the service worker has none — the same constraint that put the CodeChef parser here.
+ */
+export interface MarkdownRequest {
+  type: 'html-to-markdown';
+  html: string;
+}
+
+export interface MarkdownResponse {
+  type: 'markdown-result';
+  markdown?: string;
+  error?: string;
+}
+
+export type OffscreenRequest = ParseRequest | MarkdownRequest;
+
+/** Message types the offscreen document owns, so other listeners can ignore them. */
+export const OFFSCREEN_REQUEST_TYPES = new Set<string>(['parse-codechef', 'html-to-markdown']);
