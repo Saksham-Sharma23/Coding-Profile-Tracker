@@ -326,3 +326,45 @@
 .options .github-log li.failed .muted {
   color: var(--error);
 }
+
+/*
+ * The device-flow panel. Prominent on purpose: the code is the one thing the user has to
+ * carry to another tab, and an earlier version lost it entirely by opening GitHub
+ * automatically and taking focus along with it.
+ */
+.options .github-device {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.options .github-device p {
+  margin: 0;
+  font-size: var(--fs-2xs);
+}
+
+.options .github-device-code {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.options .github-device-code code {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  /* Selectable in one click, so copying by hand works when the clipboard API is refused. */
+  user-select: all;
+}
+
+.options .github-device-open {
+  font-size: var(--fs-2xs);
+  word-break: break-all;
+}

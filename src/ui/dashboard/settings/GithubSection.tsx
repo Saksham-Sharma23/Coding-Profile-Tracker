@@ -6,24 +6,18 @@ import {
   type Response,
 } from '@/background/messages';
 import type { RepoSummary } from '@/github/api';
+import type { GithubRepoRef } from '@/github/types';
 import {
   GITHUB_ORIGINS,
   isDeviceFlowConfigured,
   SCOPE_PRIVATE,
   SCOPE_PUBLIC,
 } from '@/github/config';
-import { isConnected } from '@/github/storage';
+import { hasAccount } from '@/github/storage';
 import { useGithub } from '../../useGithub';
 import { timeAgo } from '../../useTracker';
 import type { SectionProps } from './types';
 
-/**
- * Connect a GitHub account and push accepted solutions to a repository.
- *
- * The one place in the extension where data leaves the machine, so it is deliberately
- * explicit at every step: permissions are requested here on a click, connecting does not
- * by itself start pushing, and the log below shows exactly what was sent and when.
- */
 /**
  * What the chosen repo already contains, read from its own committed index.
  *
@@ -36,19 +30,52 @@ function describeExisting(count: number): string {
   return `${count} solution${count === 1 ? '' : 's'} already in this repository.`;
 }
 
+/** The fetched list, guaranteed to contain whichever repo is actually selected. */
+function withCurrent(repos: RepoSummary[], current: GithubRepoRef | undefined): RepoSummary[] {
+  if (!current) return repos;
+
+  const fullName = `${current.owner}/${current.name}`;
+  if (repos.some((repo) => repo.fullName === fullName)) return repos;
+
+  return [
+    {
+      owner: current.owner,
+      name: current.name,
+      fullName,
+      // Unknown until the list is reloaded, and neither is load-bearing for selection.
+      private: false,
+      defaultBranch: current.branch,
+      canPush: true,
+    },
+    ...repos,
+  ];
+}
+
+/**
+ * Connect a GitHub account and push accepted solutions to a repository.
+ *
+ * The one place in the extension where data leaves the machine, so it is deliberately
+ * explicit at every step: permissions are requested here on a click, connecting does not
+ * by itself start pushing, and the log below shows exactly what was sent and when.
+ *
+ * Branches on hasAccount(), never isConnected(). The latter also requires a repository,
+ * which is chosen in the picker below — gating on it hides the picker from exactly the
+ * people who need it and strands a freshly authorised account with no way forward.
+ */
 export function GithubSection({ flash }: SectionProps) {
   const { github, loading } = useGithub();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState('');
   const [deviceCode, setDeviceCode] = useState<{ code: string; url: string } | undefined>();
+  const [copied, setCopied] = useState(false);
   const [repos, setRepos] = useState<RepoSummary[] | undefined>();
   const [newRepoName, setNewRepoName] = useState('leetcode-solutions');
   const [wantPrivate, setWantPrivate] = useState(false);
 
   if (loading) return null;
 
-  const connected = isConnected(github);
+  const connected = hasAccount(github);
   const pending = github.queue.length;
 
   /**
@@ -67,7 +94,12 @@ export function GithubSection({ flash }: SectionProps) {
     }
   };
 
-  const run = async (action: () => Promise<Response>, ok: string): Promise<boolean> => {
+  const run = async (
+    action: () => Promise<Response>,
+    ok: string,
+    /** Runs only on success, for follow-up work like refetching a now-stale list. */
+    then?: () => Promise<void>,
+  ): Promise<boolean> => {
     setBusy(true);
     setError('');
     try {
@@ -81,6 +113,7 @@ export function GithubSection({ flash }: SectionProps) {
         return false;
       }
       if (ok) flash(ok);
+      await then?.();
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -107,7 +140,20 @@ export function GithubSection({ flash }: SectionProps) {
     port.onMessage.addListener((event: DeviceFlowEvent) => {
       if (event.type === 'code') {
         setDeviceCode({ code: event.userCode, url: event.verificationUri });
-        void chrome.tabs.create({ url: event.verificationUri });
+        /*
+         * Deliberately does NOT open the GitHub tab here.
+         *
+         * It used to, and that was actively broken: chrome.tabs.create takes focus, so
+         * the user landed on GitHub's "enter the code" page having been navigated away
+         * from the only place the code was shown. Copying it to the clipboard instead
+         * means the code travels with them, and opening GitHub stays an explicit click
+         * they make once they can see what to type.
+         */
+        void navigator.clipboard.writeText(event.userCode).then(
+          () => setCopied(true),
+          // Clipboard access can be refused; the code is on screen either way.
+          () => setCopied(false),
+        );
       }
       if (event.type === 'connected') {
         setDeviceCode(undefined);
@@ -182,13 +228,44 @@ export function GithubSection({ flash }: SectionProps) {
           )}
 
           {deviceCode && (
-            <p className="ok-text" role="status">
-              Enter code <strong>{deviceCode.code}</strong> at{' '}
-              <a href={deviceCode.url} target="_blank" rel="noreferrer">
+            <div className="github-device" role="status">
+              <p>
+                <strong>1.</strong> Copy this code{copied ? ' (already on your clipboard)' : ''}:
+              </p>
+              <div className="github-device-code">
+                <code>{deviceCode.code}</code>
+                <button
+                  onClick={() =>
+                    void navigator.clipboard.writeText(deviceCode.code).then(
+                      () => setCopied(true),
+                      () => setCopied(false),
+                    )
+                  }
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p>
+                <strong>2.</strong> Open GitHub, paste it, and approve:
+              </p>
+              {/*
+                A link the user clicks rather than a tab opened for them. Leaving this
+                page is what loses sight of the code, so it has to be their move — and
+                target=_blank keeps this page alive, which is what keeps the poll running.
+              */}
+              <a
+                className="github-device-open"
+                href={deviceCode.url}
+                target="_blank"
+                rel="noreferrer"
+              >
                 {deviceCode.url}
               </a>
-              . Waiting for approval…
-            </p>
+              <p className="muted hint">
+                Keep this page open — it is waiting for you to approve, and closing it
+                cancels the sign-in. Come back here when GitHub says you are done.
+              </p>
+            </div>
           )}
 
           <label className="github-token">
@@ -249,12 +326,19 @@ export function GithubSection({ flash }: SectionProps) {
 
           {repos && (
             <section className="settings-row github-repos">
+              {/*
+                Controlled, not defaultValue. Uncontrolled, the browser keeps whatever
+                was last picked in the DOM — so after creating a new repo the dropdown
+                went on displaying the previously highlighted one while the extension was
+                really pushing somewhere else. The selected option must be a readout of
+                stored state, never an independent memory of the last click.
+              */}
               <select
                 aria-label="Repository"
-                defaultValue=""
+                value={github.repo ? `${github.repo.owner}/${github.repo.name}` : ''}
                 disabled={busy}
                 onChange={(e) => {
-                  const chosen = repos.find((repo) => repo.fullName === e.target.value);
+                  const chosen = withCurrent(repos, github.repo).find((r) => r.fullName === e.target.value);
                   if (!chosen) return;
                   void run(
                     () =>
@@ -271,7 +355,13 @@ export function GithubSection({ flash }: SectionProps) {
                 <option value="" disabled>
                   Pick one of your repositories…
                 </option>
-                {repos.map((repo) => (
+                {/*
+                  The chosen repo is added when the fetched list predates it — a repo
+                  created here is not in a list loaded before it existed, and a controlled
+                  select whose value matches no option renders blank, which would read as
+                  "nothing is selected" while pushes were happily landing.
+                */}
+                {withCurrent(repos, github.repo).map((repo) => (
                   <option key={repo.fullName} value={repo.fullName}>
                     {repo.fullName}
                     {repo.private ? ' (private)' : ''}
@@ -304,6 +394,9 @@ export function GithubSection({ flash }: SectionProps) {
                         private: wantPrivate,
                       }),
                     `Created ${newRepoName.trim()}`,
+                    // The list was fetched before this repo existed, so it has to be
+                    // refetched or the dropdown keeps describing a world without it.
+                    loadRepos,
                   )
                 }
               >

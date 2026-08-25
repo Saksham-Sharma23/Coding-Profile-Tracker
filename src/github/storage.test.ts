@@ -5,6 +5,7 @@ import {
   appendLog,
   clearConnection,
   defaultGithubState,
+  hasAccount,
   isConnected,
   isPushEnabled,
   normalize,
@@ -83,6 +84,29 @@ describe('normalize', () => {
 
   it('rejects an unrecognised token kind', () => {
     expect(normalize({ tokenKind: 'magic' }).tokenKind).toBeUndefined();
+  });
+});
+
+describe('hasAccount', () => {
+  /*
+   * Guards a deadlock that shipped once.
+   *
+   * The settings UI branches on this to decide whether to show the repository picker.
+   * Branching on isConnected() instead — which also demands a repo — means a freshly
+   * authorised account is told it is not connected, while the only control that could
+   * set a repo stays hidden behind the check it would satisfy. Authorising succeeds and
+   * the UI never moves.
+   */
+  it('is true on a token alone, before any repository is chosen', () => {
+    const state = normalize({ token: 'ghp_secret', user: { login: 'octocat' } });
+
+    expect(hasAccount(state)).toBe(true);
+    expect(isConnected(state)).toBe(false);
+  });
+
+  it('is false with no token', () => {
+    expect(hasAccount(normalize({}))).toBe(false);
+    expect(hasAccount(normalize({ repo: { owner: 'a', name: 'b' } }))).toBe(false);
   });
 });
 

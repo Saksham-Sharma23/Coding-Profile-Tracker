@@ -55,9 +55,19 @@ async function start(): Promise<void> {
   enabled = true;
   handle = config.handle;
 
-  void sweep();
+  void sweep(true);
   setInterval(() => void sweep(), HEARTBEAT_MS);
   watchUrl();
+
+  /*
+   * Submitting and immediately switching tabs — to watch the commit land, say — is the
+   * normal way to use this. The heartbeat skips hidden tabs, so without this the capture
+   * waited for the user to come back AND for up to a minute more. Returning to the tab is
+   * itself a good moment to look.
+   */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void sweep(true);
+  });
 }
 
 /**
@@ -70,13 +80,21 @@ function watchUrl(): void {
     if (location.href === lastUrl) return;
     lastUrl = location.href;
     // A submission is not immediately queryable at the moment the URL flips.
-    setTimeout(() => void sweep(), URL_CHANGE_DELAY_MS);
+    // Forced: a submission often navigates just as the user switches away to watch.
+    setTimeout(() => void sweep(true), URL_CHANGE_DELAY_MS);
   }, 1_000);
 }
 
-/** One pass: find newly accepted submissions, capture each, hand them to the worker. */
-async function sweep(): Promise<void> {
-  if (!enabled || !handle || running || document.hidden) return;
+/**
+ * One pass: find newly accepted submissions, capture each, hand them to the worker.
+ *
+ * `force` runs even on a hidden tab. The visibility check exists only to stop the idle
+ * heartbeat polling in the background — it must never suppress a sweep that something
+ * actually happened to trigger, such as a submission navigating the page.
+ */
+async function sweep(force = false): Promise<void> {
+  if (!enabled || !handle || running) return;
+  if (!force && document.hidden) return;
   running = true;
 
   try {

@@ -126,8 +126,21 @@ export function Popup() {
                * `sidePanel.open()` needs a user gesture, and any `await` ahead of it
                * spends the gesture — so the windowId is resolved on mount and this
                * handler calls open() as its very first statement.
+               *
+               * Closing afterwards is safe: the gesture is consumed when open() is
+               * called, not when it settles. Opening the panel leaves the popup sitting
+               * on top of it otherwise, because a panel does not take focus from a popup
+               * the way a new tab does — so the two end up showing the same rows twice.
+               *
+               * Only on success. A rejected open() with the popup already dismissed would
+               * leave the user with neither surface and no clue why.
                */
-              onClick={() => void chrome.sidePanel.open({ windowId })}
+              onClick={() =>
+                void chrome.sidePanel.open({ windowId }).then(
+                  () => window.close(),
+                  () => {},
+                )
+              }
             >
               Open side panel
             </button>

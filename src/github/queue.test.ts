@@ -109,6 +109,52 @@ describe('drainQueue', () => {
     expect(pushSubmission).toHaveBeenCalledTimes(2);
   });
 
+  it('threads the head and manifest from one push into the next', async () => {
+    /*
+     * The fix for an alternating pushed/failed backlog. GitHub replicates ref reads
+     * lazily, so re-reading the head after moving it returns the previous sha and the
+     * next commit is rejected as "not a fast forward". A serial drain already knows the
+     * new head, so it must pass it forward instead of asking for it back.
+     */
+    const chains = [
+      { head: { commitSha: 'aaa', treeSha: 't1' }, manifest: { problems: [] } },
+      { head: { commitSha: 'bbb', treeSha: 't2' }, manifest: { problems: [] } },
+    ];
+    let call = 0;
+    pushSubmission.mockImplementation(async () => ({
+      status: 'pushed',
+      record: { dir: 'd', submissionId: '1', pushedAt: 1 },
+      commitUrl: 'u',
+      chain: chains[call++],
+    }));
+
+    await connect();
+    await enqueue(submission('a', '1'));
+    await enqueue(submission('b', '2'));
+    await drainQueue();
+
+    // The first push is told nothing; the second inherits what the first produced.
+    expect(pushSubmission.mock.calls[0]?.[3]).toBeUndefined();
+    expect(pushSubmission.mock.calls[1]?.[3]).toEqual(chains[0]);
+  });
+
+  it('drops the cached head after a failure, so the retry reads fresh', async () => {
+    // If our view of the repo is what broke the push, reusing it would break the next.
+    pushSubmission.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce({
+      status: 'pushed',
+      record: { dir: 'd', submissionId: '2', pushedAt: 1 },
+      commitUrl: 'u',
+      chain: { head: { commitSha: 'x', treeSha: 'y' }, manifest: { problems: [] } },
+    });
+
+    await connect();
+    await enqueue(submission('a', '1'));
+    await enqueue(submission('b', '2'));
+    await drainQueue();
+
+    expect(pushSubmission.mock.calls[1]?.[3]).toBeUndefined();
+  });
+
   it('backs off and keeps the item after a transient failure', async () => {
     pushSubmission.mockRejectedValue(new Error('network died'));
     await connect();
@@ -188,10 +234,17 @@ describe('classify', () => {
     });
   });
 
-  it('retries a conflict promptly, since rebuilding on the new head is the fix', () => {
-    const result = classify(new GithubConflictError('x'));
+  it('gives a conflict the standard backoff rather than a rapid retry', () => {
+    /*
+     * A conflict reaching classify() has already been retried against a fresh read
+     * inside pushSubmission, so it is real contention. The old two-second retry meant
+     * that with other items draining in between, one item burned all six attempts in
+     * about twelve seconds and was reported as permanently failed.
+     */
+    const result = classify(new GithubConflictError('Update is not a fast forward'));
     expect(result.fatal).toBe(false);
-    expect(result.waitMs).toBeLessThan(10_000);
+    expect(result.terminal).toBe(false);
+    expect(result.waitMs).toBeUndefined();
   });
 
   it('leaves the wait to the backoff schedule for anything else', () => {

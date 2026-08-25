@@ -1,5 +1,5 @@
-import { GithubAuthError, GithubConflictError, GithubRateLimitError } from './api';
-import { pushSubmission } from './commit';
+import { GithubAuthError, GithubRateLimitError } from './api';
+import { pushSubmission, type PushChain } from './commit';
 import { appendLog, isPushEnabled, readGithubState, updateGithubState } from './storage';
 import type { CapturedSubmission, GithubState, PendingPush } from './types';
 
@@ -11,7 +11,7 @@ export const MAX_ATTEMPTS = 6;
  *
  * Front-loaded because most failures are transient (a dropped connection, a 502) and
  * clear within a minute; the long tail exists so a sustained outage does not burn the
- * rate limit. A conflict skips this entirely — see classify().
+ * rate limit. Conflicts are retried inside pushSubmission before they ever reach here.
  */
 const BACKOFF_MS = [60_000, 5 * 60_000, 15 * 60_000, 30 * 60_000, 60 * 60_000];
 
@@ -68,6 +68,16 @@ async function run(): Promise<void> {
 
   let first = true;
 
+  /*
+   * What we know about the repo after the last successful push, threaded into the next.
+   *
+   * Without this, every push re-reads the ref that the previous push just moved — and
+   * GitHub replicates that read lazily, so the second push of a backlog routinely built
+   * on a stale parent and was rejected as "not a fast forward". Dropped on any failure,
+   * because at that point our picture of the repo is exactly what is in doubt.
+   */
+  let chain: PushChain | undefined;
+
   while (true) {
     state = await readGithubState();
     if (!isPushEnabled(state)) return;
@@ -79,7 +89,8 @@ async function run(): Promise<void> {
     first = false;
 
     try {
-      const result = await pushSubmission(token, repo, item.submission);
+      const result = await pushSubmission(token, repo, item.submission, chain);
+      chain = result.chain;
       await updateGithubState((current) => {
         current.queue = current.queue.filter(
           (each) => each.submission.submissionId !== item.submission.submissionId,
@@ -94,6 +105,8 @@ async function run(): Promise<void> {
         });
       });
     } catch (err) {
+      // Our cached head and manifest may be exactly what went wrong; re-read next time.
+      chain = undefined;
       const stop = await recordFailure(item, err);
       // Auth failures and rate limits are conditions, not per-item problems — nothing
       // else in the queue can succeed until they clear, so stop rather than burn every
@@ -181,12 +194,16 @@ export function classify(err: unknown): Classified {
     return { message, waitMs: err.retryAfterMs, fatal: true, terminal: false };
   }
 
-  if (err instanceof GithubConflictError) {
-    // Someone else moved the branch. Rebuilding on the new head is the fix and it costs
-    // one more round trip, so retry promptly instead of backing off for a minute.
-    return { message, waitMs: 2_000, fatal: false, terminal: false };
-  }
-
+  /*
+   * Everything else — including a conflict — takes the standard backoff.
+   *
+   * Conflicts used to get a two-second retry here. That was wrong twice over: the common
+   * cause is this repo's own previous push not yet replicated, which pushSubmission now
+   * retries against a fresh read; and with other items draining between attempts, two
+   * seconds burned all six attempts in about twelve seconds and declared "gave up" on a
+   * branch that was merely busy. One that still reaches here is real contention and can
+   * afford to wait a minute.
+   */
   return { message, fatal: false, terminal: false };
 }
 

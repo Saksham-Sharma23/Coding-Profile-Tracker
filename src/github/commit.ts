@@ -5,8 +5,10 @@ import {
   createTree,
   getFile,
   getHead,
+  GithubConflictError,
   putFile,
   updateRef,
+  type HeadRef,
   type TreeEntry,
 } from './api';
 import {
@@ -31,12 +33,38 @@ import {
 import { renderNotesTemplate, renderProblemReadme, renderRootReadme } from './render';
 import type { CapturedSubmission, GithubRepoRef, PushedRecord } from './types';
 
+/**
+ * What we know about the repo after a successful push, carried into the next one.
+ *
+ * Exists because GitHub's ref and contents reads are eventually consistent: immediately
+ * after updateRef succeeds, reading the ref back can still return the *previous* sha.
+ * The next push then builds on a stale parent and is rejected as "not a fast forward" —
+ * which is precisely the alternating pushed/failed pattern a backlog produced.
+ *
+ * Re-reading is the bug. After a successful push we already know the new head and the
+ * exact manifest we just committed, so a serial drain threads them forward instead of
+ * asking GitHub to confirm something it may not have replicated yet.
+ *
+ * The manifest half matters just as much: a stale manifest read would rebuild the index
+ * without the entries just added, silently dropping them from README.md on the next
+ * commit.
+ */
+export interface PushChain {
+  head: HeadRef;
+  manifest: RepoManifest;
+}
+
 export interface PushResult {
   /** 'updated' when the problem already existed in the repo — a re-solve. */
   status: 'pushed' | 'updated';
   record: PushedRecord;
   commitUrl: string;
+  /** Pass to the next push in the same drain. Discard it if anything failed. */
+  chain: PushChain;
 }
+
+/** A conflict usually means replication lag, so rebuild on a fresh read and try again. */
+const CONFLICT_RETRIES = 2;
 
 /**
  * Commits one solved problem as a single commit.
@@ -45,14 +73,40 @@ export interface PushResult {
  * files and `PUT /contents` would make that three or four separate commits. Blobs, then
  * one tree on top of the current head, then one commit, then the ref moves — so the
  * history reads as one entry per problem solved, which is the whole point of the repo.
+ *
+ * A conflict is retried here rather than thrown back to the queue. It is nearly always
+ * this repo's own previous push not yet visible, which clears in a second or two —
+ * bouncing it back would spend one of the item's six attempts on a non-problem.
  */
 export async function pushSubmission(
   token: string,
   repo: GithubRepoRef,
   submission: CapturedSubmission,
+  chain?: PushChain,
 ): Promise<PushResult> {
-  const head = await ensureBranch(token, repo);
-  const manifest = await readManifest(token, repo);
+  let known = chain;
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await commitOnce(token, repo, submission, known);
+    } catch (err) {
+      if (!(err instanceof GithubConflictError) || attempt >= CONFLICT_RETRIES) throw err;
+      // Whatever we believed about the repo was wrong. Drop it and read fresh, after a
+      // pause long enough for GitHub to have caught up with itself.
+      known = undefined;
+      await sleep(1_500 * (attempt + 1));
+    }
+  }
+}
+
+async function commitOnce(
+  token: string,
+  repo: GithubRepoRef,
+  submission: CapturedSubmission,
+  chain: PushChain | undefined,
+): Promise<PushResult> {
+  const head = chain?.head ?? (await ensureBranch(token, repo));
+  const manifest = chain?.manifest ?? (await readManifest(token, repo));
   const existing = manifest.problems.find((each) => each.titleSlug === submission.titleSlug);
 
   const dir = problemDir(submission);
@@ -99,6 +153,9 @@ export async function pushSubmission(
       pushedAt: Date.now(),
       commitSha: commit.sha,
     },
+    // The ref now points at this commit and the manifest is exactly what we wrote, so
+    // the next push in this drain can build straight on top without asking GitHub.
+    chain: { head: { commitSha: commit.sha, treeSha }, manifest: nextManifest },
     commitUrl: commit.htmlUrl,
   };
 }
@@ -159,4 +216,8 @@ function staleSolutionPath(
 /** Git is happier with a trailing newline, and LeetCode's editor does not add one. */
 function withTrailingNewline(code: string): string {
   return code.endsWith('\n') ? code : `${code}\n`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

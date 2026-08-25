@@ -81,7 +81,22 @@ export async function updateGithubState(
   return next;
 }
 
-/** Whether there is a token and a repo — i.e. a push could actually be attempted. */
+/**
+ * Whether an account is linked. Says nothing about whether a repo has been chosen.
+ *
+ * This is the one the UI must branch on. Gating the settings UI on isConnected() instead
+ * deadlocks: that needs a repo, the repo is chosen in the picker, and the picker only
+ * renders once "connected" — so a freshly authorised account can never reach it.
+ */
+export function hasAccount(state: GithubState): boolean {
+  return Boolean(state.token);
+}
+
+/**
+ * Whether a push could actually be attempted: an account *and* somewhere to push to.
+ *
+ * Push-readiness, not sign-in state. See hasAccount() for the latter.
+ */
 export function isConnected(state: GithubState): boolean {
   return Boolean(state.token && state.repo?.owner && state.repo.name);
 }
