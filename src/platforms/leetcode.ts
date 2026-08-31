@@ -126,6 +126,44 @@ export function parseCalendar(raw: string | undefined): Record<string, number> |
   return Object.keys(out).length ? out : undefined;
 }
 
+/**
+ * The user's *current* streak, counted back from today over the submission calendar.
+ *
+ * Deliberately not `userCalendar.streak`. Queried without a `year` argument — as this
+ * adapter must, since the window is what makes the calendar useful — LeetCode scopes
+ * that field to the current calendar year and reports the best run *within* it, not a
+ * live streak. It therefore never falls back to 0 when the user stops solving: it sticks
+ * at whatever the year's best run was, which is the "always 7 days" the UI kept showing.
+ * It also collapses every January 1st regardless of a streak actually in flight.
+ *
+ * The calendar is real per-day data we already fetch and parse, so the streak is derived
+ * from it instead: walk back a day at a time while each day has a submission.
+ *
+ * Today missing does not break a streak — it is not over until a whole day passes with
+ * nothing — so counting starts at yesterday when today is empty. Days are UTC, matching
+ * `isoDay` and the calendar's own keys.
+ */
+export function currentStreak(
+  calendar: Record<string, number> | undefined,
+  now: number,
+): number | undefined {
+  if (!calendar) return undefined;
+
+  const day = (offset: number) => new Date(now - offset * 86_400_000).toISOString().slice(0, 10);
+  const solvedOn = (offset: number) => (calendar[day(offset)] ?? 0) > 0;
+
+  // A day still in progress cannot end a streak; a day already past can.
+  let offset = solvedOn(0) ? 0 : 1;
+  if (!solvedOn(offset)) return 0;
+
+  let streak = 0;
+  while (solvedOn(offset)) {
+    streak += 1;
+    offset += 1;
+  }
+  return streak;
+}
+
 export function buildStats(body: LcResponse, handle: string, fetchedAt: number): PlatformStats {
   const user = body.data?.matchedUser;
   if (!user) {
@@ -160,6 +198,7 @@ export function buildStats(body: LcResponse, handle: string, fetchedAt: number):
   }
 
   const calendar = parseCalendar(user.userCalendar?.submissionCalendar);
+  const streak = currentStreak(calendar, fetchedAt);
   const recentSolved = parseRecentSolved(body);
 
   return {
@@ -182,7 +221,9 @@ export function buildStats(body: LcResponse, handle: string, fetchedAt: number):
     }),
     ...((user.userCalendar || calendar) && {
       activity: {
-        ...(user.userCalendar?.streak !== undefined && { streak: user.userCalendar.streak }),
+        // Derived from the calendar rather than read off userCalendar.streak — see
+        // currentStreak() for why that field is not a current streak at all.
+        ...(streak !== undefined && { streak }),
         ...(user.userCalendar?.totalActiveDays !== undefined && {
           activeDays: user.userCalendar.totalActiveDays,
         }),

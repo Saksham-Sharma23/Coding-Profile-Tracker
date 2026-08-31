@@ -1,7 +1,7 @@
 import { GithubAuthError, GithubRateLimitError } from './api';
 import { pushSubmission, type PushChain } from './commit';
-import { appendLog, isPushEnabled, readGithubState, updateGithubState } from './storage';
-import type { CapturedSubmission, GithubState, PendingPush } from './types';
+import { appendLog, forgetSeen, isPushEnabled, readGithubState, updateGithubState } from './storage';
+import type { CapturedSubmission, GithubRepoRef, GithubState, PendingPush } from './types';
 
 /** Give up after this many tries and record a visible failure rather than looping. */
 export const MAX_ATTEMPTS = 6;
@@ -37,10 +37,24 @@ export async function enqueue(submission: CapturedSubmission): Promise<void> {
   await updateGithubState((state) => {
     // Re-solving before the first push drains should replace the pending item, not
     // queue a second commit for the same problem.
+    const superseded = state.queue.find(
+      (item) => item.submission.titleSlug === submission.titleSlug,
+    );
     const queue = state.queue.filter(
       (item) => item.submission.titleSlug !== submission.titleSlug,
     );
-    queue.push({ submission, attempts: 0, nextAttemptAt: 0 });
+
+    /*
+     * The replacement inherits the attempt count of the item it supersedes.
+     *
+     * Resetting it looks harmless but defeats MAX_ATTEMPTS entirely: a problem whose push
+     * always fails (a repo deleted, a path GitHub refuses) is re-queued at zero every time
+     * the user re-solves it, so it never reaches the give-up branch, never lands in the
+     * log as failed, and retries silently forever. Carrying the count forward means the
+     * user still finds out. The backoff is not inherited — a fresh solve deserves an
+     * immediate try.
+     */
+    queue.push({ submission, attempts: superseded?.attempts ?? 0, nextAttemptAt: 0 });
     state.queue = queue;
   });
 }
@@ -62,10 +76,6 @@ async function run(): Promise<void> {
   let state = await readGithubState();
   if (!isPushEnabled(state) || !state.queue.length) return;
 
-  const token = state.token;
-  const repo = state.repo;
-  if (!token || !repo) return;
-
   let first = true;
 
   /*
@@ -77,13 +87,34 @@ async function run(): Promise<void> {
    * because at that point our picture of the repo is exactly what is in doubt.
    */
   let chain: PushChain | undefined;
+  /** Which repo `chain` describes, so a repo change mid-drain invalidates it. */
+  let chainRepo: GithubRepoRef | undefined;
 
   while (true) {
     state = await readGithubState();
     if (!isPushEnabled(state)) return;
 
+    /*
+     * Re-read per iteration rather than captured once before the loop.
+     *
+     * A drain can run for minutes across a backlog, and the settings UI stays live
+     * throughout. Holding the originals meant that changing the repository mid-drain sent
+     * every remaining push to the *old* repo, and reconnecting a token mid-drain kept
+     * using the replaced one.
+     */
+    const token = state.token;
+    const repo = state.repo;
+    if (!token || !repo) return;
+
     const item = nextDue(state, Date.now());
     if (!item) return;
+
+    // The chain describes the repo we were pushing to. If that changed under us, what we
+    // believe about its head and manifest no longer applies.
+    if (chain && (repo.owner !== chainRepo?.owner || repo.name !== chainRepo.name || repo.branch !== chainRepo.branch)) {
+      chain = undefined;
+    }
+    chainRepo = repo;
 
     if (!first) await sleep(PUSH_GAP_MS);
     first = false;
@@ -147,6 +178,10 @@ async function recordFailure(item: PendingPush, err: unknown): Promise<boolean> 
 
       if (pending.attempts >= MAX_ATTEMPTS && !terminal) {
         state.queue = state.queue.filter((each) => each !== pending);
+        // Dropping it from the queue while it stays in the seen window would strand the
+        // solution permanently — the content script filters on that window, so it would
+        // never be offered again. Forgetting it makes the next sweep pick it back up.
+        forgetSeen(state, item.submission.submissionId);
         appendLog(state, {
           at: Date.now(),
           titleSlug: item.submission.titleSlug,

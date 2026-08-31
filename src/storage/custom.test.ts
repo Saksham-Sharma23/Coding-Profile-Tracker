@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isCustomId, mintCustomId, originOf, sanitizeCustom, MAX_CUSTOM_PLATFORMS } from './custom';
+import {
+  atCustomPlatformLimit,
+  isCustomId,
+  mintCustomId,
+  originOf,
+  sanitizeCustom,
+  MAX_CUSTOM_PLATFORMS,
+} from './custom';
 import { migrate } from './schema';
 
 const base = {
@@ -97,12 +104,27 @@ describe('sanitizeCustom — descriptor rules', () => {
     expect(out.map((d) => d.id)).toEqual(['custom:atcoder-7f3a', 'custom:other-0002']);
   });
 
-  it('caps the list so a hostile import cannot mint thousands of adapters', () => {
-    const many = Array.from({ length: 500 }, (_, i) => ({
+  it('keeps every valid platform rather than truncating to the limit', () => {
+    /*
+     * sanitizeCustom runs inside migrate(), which runs on every read. Truncating here
+     * would not reject an oversized import — it would silently delete the user's own
+     * platforms and their hand-kept counts from storage on the next read, permanently.
+     * The limit is enforced where a platform is created, which is where it can be
+     * explained and refused. See atCustomPlatformLimit().
+     */
+    const many = Array.from({ length: MAX_CUSTOM_PLATFORMS + 5 }, (_, i) => ({
       ...base,
       id: `custom:p${i}-0000`,
     }));
-    expect(sanitizeCustom(many)).toHaveLength(MAX_CUSTOM_PLATFORMS);
+    expect(sanitizeCustom(many)).toHaveLength(MAX_CUSTOM_PLATFORMS + 5);
+  });
+
+  it('reports when the creation limit is reached', () => {
+    const at = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ ...base, id: `custom:p${i}-0000` }));
+
+    expect(atCustomPlatformLimit(sanitizeCustom(at(MAX_CUSTOM_PLATFORMS - 1)))).toBe(false);
+    expect(atCustomPlatformLimit(sanitizeCustom(at(MAX_CUSTOM_PLATFORMS)))).toBe(true);
   });
 
   it('caps display-only extra fields', () => {

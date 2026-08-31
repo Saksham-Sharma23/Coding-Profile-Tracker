@@ -44,4 +44,20 @@ describe('withinReminderWindow', () => {
     expect(withinReminderWindow(9, at(2026, 8, 6, 9 + REMINDER_WINDOW_HOURS - 1))).toBe(true);
     expect(withinReminderWindow(9, at(2026, 8, 6, 9 + REMINDER_WINDOW_HOURS))).toBe(false);
   });
+
+  it('allows a catch-up that crosses midnight', () => {
+    // A 23:00 reminder firing late at 00:30 is half an hour past, not 23 hours early.
+    // A bare subtraction read this as -23 and suppressed it, so a reminder set to 23:00
+    // could never fire from a catch-up at all.
+    expect(withinReminderWindow(23, at(2026, 8, 7, 0, 30))).toBe(true);
+    expect(withinReminderWindow(23, at(2026, 8, 6, 23, 15))).toBe(true);
+  });
+
+  it('still rejects a catch-up that crossed midnight too late', () => {
+    // 03:00 against a 23:00 target is four hours past — a missed alarm surfacing at the
+    // wrong time of day, which is exactly what the window exists to drop.
+    expect(withinReminderWindow(23, at(2026, 8, 7, 3))).toBe(false);
+    // And the far side: 22:00 is an hour early, not 23 hours late.
+    expect(withinReminderWindow(23, at(2026, 8, 6, 22))).toBe(false);
+  });
 });

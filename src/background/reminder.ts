@@ -37,17 +37,32 @@ export function msUntilHour(hour: number, now: number): number {
  * surfacing at the wrong time of day, and is dropped.
  */
 export function withinReminderWindow(hour: number, now: number): boolean {
-  const elapsed = new Date(now).getHours() - hour;
-  return elapsed >= 0 && elapsed < REMINDER_WINDOW_HOURS;
+  /*
+   * Wrapped into 0..23 rather than a bare subtraction.
+   *
+   * A plain `getHours() - hour` cannot express a window that crosses midnight: with the
+   * reminder set to 23:00, a catch-up firing at 00:30 gives 0 - 23 = -23 and is thrown
+   * away as "not yet". A 23:00 reminder could therefore never fire from a catch-up at
+   * all, which looked exactly like the setting failing to save.
+   */
+  const elapsed = (new Date(now).getHours() - hour + 24) % 24;
+  return elapsed < REMINDER_WINDOW_HOURS;
 }
 
+/**
+ * Arms the next firing.
+ *
+ * A one-shot rather than a repeating alarm, re-armed from `maybeNotify` after each fire.
+ * A fixed `periodInMinutes: 24 * 60` drifts an hour across every DST transition and stays
+ * drifted until settings happen to be saved again; re-anchoring on the wall clock each
+ * time keeps an 8pm reminder at 8pm all year.
+ */
 export async function scheduleReminder(reminder: ReminderSettings): Promise<void> {
   await chrome.alarms.clear(REMINDER_ALARM);
   if (!reminder.enabled) return;
 
   await chrome.alarms.create(REMINDER_ALARM, {
     delayInMinutes: msUntilHour(reminder.hour, Date.now()) / 60_000,
-    periodInMinutes: 24 * 60,
   });
 }
 
@@ -59,6 +74,12 @@ export async function scheduleReminder(reminder: ReminderSettings): Promise<void
 export async function maybeNotify(now = Date.now()): Promise<boolean> {
   const state = await readState();
   const { reminder, dailyGoal } = state.settings;
+
+  // The alarm is one-shot, so tomorrow's has to be armed whatever today's outcome is —
+  // including the early returns below, which are all "nothing to say today", not
+  // "stop reminding me".
+  if (reminder.enabled) await scheduleReminder(reminder);
+
   if (!reminder.enabled || !withinReminderWindow(reminder.hour, now)) return false;
 
   const tracked = visiblePlatforms(

@@ -66,19 +66,32 @@ export async function readGithubState(): Promise<GithubState> {
 }
 
 /**
- * Read-modify-write, mirroring storage/repo.ts.
+ * Serialized read-modify-write, mirroring storage/repo.ts.
  *
  * The same reasoning applies here and then some: the content script appends seen ids
- * while the queue drains and the settings UI toggles switches, so a mutation built from
- * a stale read would drop whichever landed first.
+ * while the queue drains and the settings UI toggles switches. Re-reading inside the
+ * callback does not make that safe on its own — both the read and the write are async
+ * and the whole blob is replaced, so overlapping mutations lose whichever landed first.
+ * A dropped `seenSubmissionIds` entry means the same submission is captured and pushed
+ * twice; a dropped queue write means a solution is never pushed at all.
+ *
+ * The tail of this chain is the lock. See `updateState` in storage/repo.ts.
  */
+let queue: Promise<unknown> = Promise.resolve();
+
 export async function updateGithubState(
   mutate: (state: GithubState) => GithubState | void,
 ): Promise<GithubState> {
-  const current = await readGithubState();
-  const next = mutate(current) ?? current;
-  await chrome.storage.local.set({ [KEY]: next });
-  return next;
+  // Chained regardless of outcome, so one failure cannot wedge every later mutation.
+  const run = queue.then(async () => {
+    const current = await readGithubState();
+    const next = mutate(current) ?? current;
+    await chrome.storage.local.set({ [KEY]: next });
+    return next;
+  });
+
+  queue = run.catch(() => undefined);
+  return run;
 }
 
 /**
@@ -104,6 +117,20 @@ export function isConnected(state: GithubState): boolean {
 /** Connected, and the user has actually asked for solutions to be pushed. */
 export function isPushEnabled(state: GithubState): boolean {
   return isConnected(state) && state.enabled;
+}
+
+/**
+ * Un-remembers a submission id, so the content script offers it again.
+ *
+ * The counterpart to `rememberSeen`. An id is marked seen the moment it is queued, which
+ * is right for capture — a capture that died mid-flight is never acknowledged and gets
+ * offered again. But it is wrong once a *push* gives up: the item leaves the queue while
+ * the id stays in this window, so `requestNewIds` filters it out forever and the
+ * solution can never be pushed again, however many times the user reconnects. Re-solving
+ * the problem was the only recovery, and nothing said so.
+ */
+export function forgetSeen(state: GithubState, id: string): void {
+  state.seenSubmissionIds = state.seenSubmissionIds.filter((each) => each !== id);
 }
 
 export function rememberSeen(state: GithubState, ids: string[]): void {

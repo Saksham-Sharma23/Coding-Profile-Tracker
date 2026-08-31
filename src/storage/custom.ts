@@ -186,7 +186,18 @@ export function sanitizeOne(value: unknown, taken: ReadonlySet<string>): CustomP
   };
 }
 
-/** Validates the whole list, first-wins on duplicate ids so imports are idempotent. */
+/**
+ * Validates the whole list, first-wins on duplicate ids so imports are idempotent.
+ *
+ * The cap is deliberately *not* enforced here. `migrate()` runs on every single read, so
+ * truncating would not merely reject an oversized import — it would silently delete the
+ * user's own platforms and their hand-kept counts from storage on the very next read,
+ * permanently and with no message. That is the exact loss `migrate()` goes out of its way
+ * to avoid when it refuses to prune `custom:` keys.
+ *
+ * `MAX_CUSTOM_PLATFORMS` belongs at the point of creation instead, where a limit can be
+ * explained and refused — see `atCustomPlatformLimit()`.
+ */
 export function sanitizeCustom(value: unknown): CustomPlatform[] {
   if (!Array.isArray(value)) return [];
 
@@ -194,11 +205,15 @@ export function sanitizeCustom(value: unknown): CustomPlatform[] {
   const out: CustomPlatform[] = [];
 
   for (const entry of value) {
-    if (out.length >= MAX_CUSTOM_PLATFORMS) break;
     const def = sanitizeOne(entry, taken);
     if (!def) continue;
     taken.add(def.id);
     out.push(def);
   }
   return out;
+}
+
+/** Whether adding another user-defined platform would exceed the supported limit. */
+export function atCustomPlatformLimit(existing: readonly CustomPlatform[]): boolean {
+  return existing.length >= MAX_CUSTOM_PLATFORMS;
 }

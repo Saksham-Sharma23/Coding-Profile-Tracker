@@ -10,7 +10,7 @@
  * trade than a rollover at the wrong hour.
  */
 import type { PlatformAdapter, PlatformId } from '@/platforms/types';
-import { pointForDay, previousDay, previousPoint } from '@/storage/repo';
+import { isoDay, pointForDay, previousDay, previousPoint } from '@/storage/repo';
 import type { HistoryPoint, TrackerState } from '@/storage/schema';
 
 /**
@@ -82,6 +82,28 @@ export function solvedToday(
   for (const adapter of counted(adapters)) {
     const current = state.snapshots[adapter.id]?.stats?.solved?.total;
     if (current === undefined) continue;
+
+    /*
+     * A platform that publishes *which* problems were solved can answer directly, by
+     * counting the ones stamped today — no baseline required.
+     *
+     * This is the answer whenever it is available, because the history route cannot work
+     * on the first day: it needs a point for yesterday specifically, and a fresh install
+     * (or a day with the browser closed) has none, so "solved today" sat at "—" even with
+     * a problem visibly solved and listed an inch below it. The per-problem timestamps
+     * are already stored and already rendered in the dashboard's solved log; this reads
+     * the same data rather than inferring from a delta.
+     *
+     * Only for platforms that declare `problemList`. Anywhere else the stored list is
+     * structurally incomplete and counting it would under-report.
+     */
+    if (adapter.capabilities.problemList) {
+      const problems = state.solved[adapter.id];
+      if (problems) {
+        solved = (solved ?? 0) + problems.filter((each) => isoDay(each.solvedAt) === today).length;
+        continue;
+      }
+    }
 
     const series = state.history[adapter.id];
     /*

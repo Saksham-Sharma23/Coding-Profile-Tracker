@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import type { PlatformId } from '@/platforms/types';
-import { MAX_CUSTOM_PLATFORMS, mintCustomId, type CustomPlatform } from '@/storage/custom';
+import {
+  atCustomPlatformLimit,
+  MAX_CUSTOM_PLATFORMS,
+  mintCustomId,
+  type CustomPlatform,
+} from '@/storage/custom';
 import { upsertCustomPlatform } from '@/storage/repo';
 import { PlusIcon } from '../../icons';
 import type { SectionProps } from './types';
@@ -24,7 +29,7 @@ export function CustomPlatformsSection({ state, updateSettings, flash }: Section
   const [busy, setBusy] = useState(false);
 
   const existing = state.settings.custom;
-  const full = existing.length >= MAX_CUSTOM_PLATFORMS;
+  const full = atCustomPlatformLimit(existing);
   const trimmed = name.trim();
 
   const add = async () => {

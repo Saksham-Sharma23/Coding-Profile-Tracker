@@ -74,7 +74,12 @@ export function parseLeetcodeContests(body: LcEnvelope, now: number): ContestIte
   if (!Array.isArray(contests)) return [];
 
   return contests
-    .filter((contest): contest is LcContest => Boolean(contest?.titleSlug && contest.startTime))
+    // Explicit checks rather than Boolean(): a startTime of 0 is falsy but structurally
+    // valid, and truthiness would silently drop it.
+    .filter(
+      (contest): contest is LcContest =>
+        Boolean(contest?.titleSlug) && typeof contest?.startTime === 'number',
+    )
     .map((contest) => ({
       platform: 'leetcode' as const,
       name: contest.title,

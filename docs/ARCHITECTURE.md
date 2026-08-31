@@ -72,6 +72,15 @@ refetched at most every six hours, riding the existing alarm rather than adding 
 - **Streaks are attributed, never merged.** Only LeetCode and GeeksforGeeks publish
   one, so it renders as "12 days · LeetCode". A bare "12-day streak" would read as a
   cross-platform figure the tracker has no way to compute.
+- **LeetCode's streak is derived, not read.** `userCalendar.streak` is not a current
+  streak: queried without a `year` argument, LeetCode scopes it to the current calendar
+  year and reports the best run *within* it. So it never falls back to 0 when the user
+  stops solving — it sticks at the year's best, which is why the UI reported a fixed
+  "7 days" indefinitely — and it collapses every January 1st regardless of a streak
+  actually in flight. `currentStreak()` walks the submission calendar back from today
+  instead, off data already fetched. A day still in progress does not end a streak, so
+  counting starts at yesterday when today is empty. GeeksforGeeks is left as-is: its
+  `pod_solved_current_streak` genuinely is a current streak.
 - **A hand-kept counter never counts as a fetch.** Its snapshot is marked `manual`, so
   clicking `+1` cannot convince the popup that five hours-old platforms are fresh, and
   the dashboard's "Fetched 2m ago" never describes something that was typed rather than
@@ -124,6 +133,19 @@ Two MV3 constraints shape the design:
    offscreen document.
 2. **Service workers are torn down after ~30s idle**, so scheduling uses
    `chrome.alarms` (never `setInterval`) and nothing is cached in module scope.
+
+### Writes are serialized, not merely re-read
+
+`updateState` and `updateGithubState` chain every mutation onto a module-scope promise.
+Both rewrite the *whole* blob and both `await` between reading and writing, so two
+overlapping callers otherwise read the same "before" state and the second write silently
+discards the first. `refreshAll` fans adapters out through `Promise.all`, and the 400ms
+stagger only spaces out request *starts* — responses land together routinely, so this was
+losing snapshots, history points and solved lists in ordinary use.
+
+The chain is per-context, which is the honest limit of it: a UI page and the service
+worker still write independently, and `chrome.storage.onChanged` is what reconciles those.
+A mutation that throws is chained through `.catch` so one failure cannot wedge the rest.
 
 ### GitHub sync
 
@@ -214,11 +236,20 @@ the sparkline caption.
 ## Development
 
 ```bash
-npm test           # 263 tests
+npm test           # 440 tests
 npm run typecheck
 npm run build
 node scripts/make-icons.mjs   # only when the icon design changes
 ```
+
+Two test details worth knowing, both of which hid a shipped bug:
+
+- **`mockChromeStorage` takes a `latencyMs`.** With a synchronous storage stub a
+  read-modify-write cycle can never interleave, so a lost-update bug is structurally
+  invisible. `storage/repo.concurrency.test.ts` runs against a stub with real IPC latency
+  and fails outright without the write serialization in `updateState`.
+- **The LeetCode fixture is an inactive account** (`streak: 0`, empty calendar), so
+  streak behaviour needs synthetic payloads — a fixture alone cannot exercise it.
 
 Adapter tests run against **real captured API responses** in
 `src/platforms/__fixtures__/`. Those fixtures are the canary: when a platform changes

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildStats, parseCalendar, parseRecentSolved } from './leetcode';
+import { buildStats, currentStreak, parseCalendar, parseRecentSolved } from './leetcode';
 import { HandleNotFoundError } from './types';
 import fixture from './__fixtures__/leetcode-profile.json';
 
@@ -119,6 +119,94 @@ describe('leetcode', () => {
       // must not be mistaken for "this platform has no problem feed".
       expect(parseRecentSolved(fixture)).toEqual([]);
       expect(buildStats(fixture, 'neal_wu', AT).solvedProblems).toBeUndefined();
+    });
+  });
+
+  describe('currentStreak', () => {
+    // 2023-11-15 UTC, matching the epoch keys used throughout these tests.
+    const NOW = Date.parse('2023-11-15T12:00:00Z');
+    const cal = (...days: string[]) => Object.fromEntries(days.map((d) => [d, 1]));
+
+    it('counts consecutive days back from today', () => {
+      expect(currentStreak(cal('2023-11-15', '2023-11-14', '2023-11-13'), NOW)).toBe(3);
+    });
+
+    it('does not break the streak on a day still in progress', () => {
+      // Nothing solved yet today, but yesterday and before are unbroken. The streak is
+      // not over until a whole day has passed with nothing in it.
+      expect(currentStreak(cal('2023-11-14', '2023-11-13'), NOW)).toBe(2);
+    });
+
+    it('reports 0 once a full day has passed with nothing solved', () => {
+      // This is the case userCalendar.streak got wrong: it kept reporting the year's
+      // best run, so a lapsed streak showed as "7 days" forever.
+      expect(currentStreak(cal('2023-11-01', '2023-10-31'), NOW)).toBe(0);
+    });
+
+    it('treats a zero count as no activity that day', () => {
+      // Today recorded as 0 is the same as today being absent: the day is still in
+      // progress, so the streak continues from yesterday rather than ending.
+      expect(currentStreak({ '2023-11-15': 0, '2023-11-14': 2 }, NOW)).toBe(1);
+      // A past day recorded as 0 does end it.
+      expect(currentStreak({ '2023-11-14': 0, '2023-11-13': 2 }, NOW)).toBe(0);
+    });
+
+    it('stops at the first gap rather than counting every active day', () => {
+      expect(currentStreak(cal('2023-11-15', '2023-11-14', '2023-11-12'), NOW)).toBe(2);
+    });
+
+    it('has no opinion when there is no calendar at all', () => {
+      expect(currentStreak(undefined, NOW)).toBeUndefined();
+    });
+  });
+
+  describe('streak reported by buildStats', () => {
+    it('derives the streak from the calendar, not from userCalendar.streak', () => {
+      const at = Date.parse('2023-11-15T12:00:00Z');
+      const body = {
+        data: {
+          matchedUser: {
+            username: 'u',
+            submitStatsGlobal: { acSubmissionNum: [{ difficulty: 'All', count: 10 }] },
+            userCalendar: {
+              // What LeetCode reports for the year: a best run of 7 that has long lapsed.
+              streak: 7,
+              totalActiveDays: 40,
+              submissionCalendar: JSON.stringify({
+                [Date.parse('2023-11-14T00:00:00Z') / 1000]: 2,
+                [Date.parse('2023-11-13T00:00:00Z') / 1000]: 1,
+              }),
+            },
+          },
+          userContestRanking: null,
+          recentAcSubmissionList: null,
+        },
+      };
+
+      expect(buildStats(body, 'u', at).activity?.streak).toBe(2);
+    });
+
+    it('reports a lapsed streak as 0 rather than the year best', () => {
+      const at = Date.parse('2023-11-15T12:00:00Z');
+      const body = {
+        data: {
+          matchedUser: {
+            username: 'u',
+            submitStatsGlobal: { acSubmissionNum: [{ difficulty: 'All', count: 10 }] },
+            userCalendar: {
+              streak: 7,
+              totalActiveDays: 40,
+              submissionCalendar: JSON.stringify({
+                [Date.parse('2023-09-01T00:00:00Z') / 1000]: 3,
+              }),
+            },
+          },
+          userContestRanking: null,
+          recentAcSubmissionList: null,
+        },
+      };
+
+      expect(buildStats(body, 'u', at).activity?.streak).toBe(0);
     });
   });
 

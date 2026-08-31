@@ -20,8 +20,9 @@ export function GoalSection({ state, updateSettings }: SectionProps) {
           ))}
         </select>
         <span className="muted hint">
-          Counted from the day-over-day change in your solve totals, so it needs a day of history
-          before it can show anything.
+          Counted from the problems themselves where a platform says which ones you solved,
+          and from the day-over-day change in your totals everywhere else — those need a day
+          of history first.
         </span>
       </section>
     </>

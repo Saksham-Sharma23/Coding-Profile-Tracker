@@ -292,3 +292,85 @@ describe('solvedToday — hand-kept counters', () => {
     expect(result).toEqual({ solved: 4, partial: false });
   });
 });
+
+describe('solvedToday from the problem list', () => {
+  /** An adapter that publishes which problems were solved, as LeetCode does. */
+  function listing(id: PlatformId): PlatformAdapter {
+    return {
+      ...adapter(id),
+      capabilities: { ...FETCHED_PLATFORM, problemList: true },
+    };
+  }
+
+  function withProblems(id: PlatformId, total: number, days: string[]): TrackerState {
+    const state = stateWith({ solved: { [id]: total } });
+    state.solved = {
+      [id]: days.map((day, i) => ({
+        key: `p${i}`,
+        name: `Problem ${i}`,
+        url: 'https://example.com',
+        solvedAt: Date.parse(`${day}T12:00:00Z`),
+      })),
+    };
+    return state;
+  }
+
+  it('counts today on the very first day, with no history at all', () => {
+    /*
+     * The reported case: a fresh install, one problem solved today, and the summary
+     * strip showing "—" while the solved log listed that problem an inch below. The
+     * baseline route needs a point for yesterday and there is none on day one.
+     */
+    const state = withProblems('leetcode', 66, ['2026-08-31']);
+    expect(solvedToday(state, [listing('leetcode')], '2026-08-31')).toEqual({
+      solved: 1,
+      partial: false,
+    });
+  });
+
+  it('reports 0 rather than "—" on a day with nothing solved', () => {
+    const state = withProblems('leetcode', 66, ['2026-08-25']);
+    expect(solvedToday(state, [listing('leetcode')], '2026-08-31')).toEqual({
+      solved: 0,
+      partial: false,
+    });
+  });
+
+  it('counts several problems solved on the same day', () => {
+    const state = withProblems('leetcode', 68, ['2026-08-31', '2026-08-31', '2026-08-30']);
+    expect(solvedToday(state, [listing('leetcode')], '2026-08-31').solved).toBe(2);
+  });
+
+  it('still falls back to the history baseline for a platform with no problem list', () => {
+    // CodeChef and friends publish only totals, so the delta route remains the only one.
+    const state = stateWith({
+      solved: { codechef: 40 },
+      history: { codechef: [{ d: '2026-08-30', solved: 37 }] },
+    });
+    expect(solvedToday(state, [adapter('codechef')], '2026-08-31')).toEqual({
+      solved: 3,
+      partial: false,
+    });
+  });
+
+  it('adds a listing platform and a counting one together', () => {
+    const state = withProblems('leetcode', 66, ['2026-08-31']);
+    state.snapshots.codechef = {
+      status: 'ok',
+      fetchedAt: Date.parse('2026-08-31T12:00:00Z'),
+      stats: {
+        platform: 'codechef',
+        handle: 'u',
+        fetchedAt: Date.parse('2026-08-31T12:00:00Z'),
+        headline: [{ label: 'Solved', value: 40 }],
+        solved: { total: 40 },
+      },
+    };
+    state.history.codechef = [{ d: '2026-08-30', solved: 37 }];
+
+    expect(solvedToday(state, [listing('leetcode'), adapter('codechef')], '2026-08-31')).toEqual({
+      solved: 4,
+      partial: false,
+    });
+  });
+});

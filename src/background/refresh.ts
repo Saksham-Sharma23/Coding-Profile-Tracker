@@ -87,7 +87,11 @@ export async function refreshAll(only?: PlatformId[]): Promise<RefreshOutcome[]>
   });
 
   const outcomes = await Promise.all(tasks);
-  await refreshContests(state);
+  // Re-read rather than reusing the pre-refresh snapshot: `state` was captured before the
+  // adapters ran, so its `contests.fetchedAt` describes the world as it was several
+  // seconds ago. Harmless while contests are the only thing read from it, and wrong the
+  // moment anything else is.
+  await refreshContests(await readState());
   await updateBadge();
   return outcomes;
 }

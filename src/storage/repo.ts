@@ -37,17 +37,39 @@ async function writeState(state: TrackerState): Promise<void> {
 }
 
 /**
- * Read-modify-write. Refreshes run adapters concurrently and each writes its own
- * result, so mutations must re-read inside the update to avoid clobbering a sibling
- * that landed first.
+ * Serializes every read-modify-write against storage.
+ *
+ * Re-reading inside the callback is necessary but nowhere near sufficient. `readState`
+ * and `writeState` are both async and the whole blob is rewritten each time, so two
+ * overlapping updates each read the same "before" state and the second write silently
+ * discards the first — losing a snapshot, its history point and its solved list. That is
+ * not a rare interleaving: `refreshAll` runs adapters through `Promise.all`, and the
+ * 400ms stagger only spaces out request *starts*, not the responses, which arrive
+ * together routinely.
+ *
+ * The tail of this promise chain is the lock. Awaiting it before reading means each
+ * mutation observes the previous one's write, turning concurrent callers into a queue.
+ * Module scope is the right lifetime — it lives exactly as long as the worker or page,
+ * and a teardown mid-chain leaves storage consistent because each link writes whole.
+ *
+ * This orders writes *within* one context. A UI page and the service worker still write
+ * independently; `chrome.storage.onChanged` is what keeps those in step.
  */
+let queue: Promise<unknown> = Promise.resolve();
+
 export async function updateState(
   mutate: (state: TrackerState) => TrackerState | void,
 ): Promise<TrackerState> {
-  const current = await readState();
-  const next = mutate(current) ?? current;
-  await writeState(next);
-  return next;
+  // Chained regardless of outcome: one failed mutation must not wedge every later one.
+  const run = queue.then(async () => {
+    const current = await readState();
+    const next = mutate(current) ?? current;
+    await writeState(next);
+    return next;
+  });
+
+  queue = run.catch(() => undefined);
+  return run;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -283,8 +305,20 @@ export async function recordFailure(
   });
 }
 
+/**
+ * The UTC day for a timestamp.
+ *
+ * Guarded because `new Date(NaN).toISOString()` throws a RangeError rather than
+ * returning anything. `migrate()` validates settings thoroughly but passes `snapshots`,
+ * `history` and `solved` through untouched, so a hand-edited or truncated import can
+ * carry a non-numeric `fetchedAt` or `solvedAt` straight into a render — where an
+ * exception blanks the whole surface. Falling back to the epoch keeps the bad row
+ * visibly wrong instead of taking the page down with it.
+ */
 export function isoDay(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
+  const day = new Date(ts);
+  if (Number.isNaN(day.getTime())) return '1970-01-01';
+  return day.toISOString().slice(0, 10);
 }
 
 /** The ISO day before `day`. Pure string/UTC math, so it never drifts with local time. */

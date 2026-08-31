@@ -275,3 +275,89 @@ describe('nextDueAt', () => {
     expect(nextDueAt(await readGithubState())).toBe(1_000);
   });
 });
+
+describe('recovery from a give-up', () => {
+  beforeEach(async () => {
+    mockChromeStorage();
+    pushSubmission.mockReset();
+    await connect();
+  });
+
+  it('forgets the submission id so it can be captured again', async () => {
+    // An id is marked seen the moment it is queued. If it stayed seen after the queue
+    // gave up, requestNewIds would filter it out forever and the solution could never be
+    // pushed again — re-solving the problem was the only way back.
+    await updateGithubState((state) => {
+      state.seenSubmissionIds = ['1'];
+    });
+    await enqueue(submission('two-sum', '1'));
+
+    pushSubmission.mockRejectedValue(new Error('boom'));
+
+    // Burn every attempt; each drain does one try, then backs off.
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      await updateGithubState((state) => {
+        for (const item of state.queue) item.nextAttemptAt = 0;
+      });
+      await drainQueue();
+    }
+
+    const state = await readGithubState();
+    expect(state.queue).toHaveLength(0);
+    expect(state.seenSubmissionIds).not.toContain('1');
+    expect(state.log[0]).toMatchObject({ status: 'failed', titleSlug: 'two-sum' });
+  });
+
+  it('carries the attempt count across a re-solve', async () => {
+    await enqueue(submission('two-sum', '1'));
+    pushSubmission.mockRejectedValue(new Error('boom'));
+    await drainQueue();
+
+    expect((await readGithubState()).queue[0]?.attempts).toBe(1);
+
+    // Re-solving replaces the pending item. Resetting attempts here would mean a problem
+    // that always fails to push never reaches MAX_ATTEMPTS and retries silently forever.
+    await enqueue(submission('two-sum', '2'));
+
+    const item = (await readGithubState()).queue[0];
+    expect(item?.submission.submissionId).toBe('2');
+    expect(item?.attempts).toBe(1);
+    // The backoff is not inherited: a fresh solve deserves an immediate try.
+    expect(item?.nextAttemptAt).toBe(0);
+  });
+});
+
+describe('a repository change mid-drain', () => {
+  beforeEach(async () => {
+    mockChromeStorage();
+    pushSubmission.mockReset();
+    await connect();
+  });
+
+  it('pushes to the repository chosen at the time, not the one captured at the start', async () => {
+    await enqueue(submission('a', '1'));
+    await enqueue(submission('b', '2'));
+
+    const seen: string[] = [];
+    pushSubmission.mockImplementation(async (_token: string, repo: { name: string }) => {
+      seen.push(repo.name);
+      // Switch repositories between the first and second push, exactly as the settings
+      // UI can while a backlog drains.
+      if (seen.length === 1) {
+        await updateGithubState((state) => {
+          state.repo = { owner: 'o', name: 'moved', branch: 'main' };
+        });
+      }
+      return {
+        status: 'pushed',
+        record: { dir: 'd', submissionId: 'x', pushedAt: 0, commitSha: 's' },
+        commitUrl: 'u',
+        chain: { head: { commitSha: 's', treeSha: 't' }, manifest: { problems: [] } },
+      };
+    });
+
+    await drainQueue();
+
+    expect(seen).toEqual(['r', 'moved']);
+  });
+});
